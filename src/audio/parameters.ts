@@ -1,0 +1,13 @@
+export type Wave = 'sine'|'triangle'|'square'|'sawtooth';
+export interface OscSettings { wave:Wave; octave:number; detune:number; volume:number }
+export interface EnvelopeSettings { attack:number; decay:number; sustain:number; release:number }
+export interface Patch { osc: [OscSettings,OscSettings]; mix:number; tuning:number; amp:EnvelopeSettings; filter:{cutoff:number; resonance:number; amount:number; envelope:EnvelopeSettings}; chorus:{enabled:boolean; mix:number; rate:number; depth:number}; delay:{enabled:boolean; mix:number; time:number; feedback:number}; reverb:{enabled:boolean; mix:number}; compressor:{enabled:boolean; threshold:number; ratio:number}; master:number }
+export const defaults:Patch={osc:[{wave:'sawtooth',octave:0,detune:-5,volume:.8},{wave:'triangle',octave:0,detune:5,volume:.8}],mix:.45,tuning:440,amp:{attack:.02,decay:.3,sustain:.65,release:.45},filter:{cutoff:4500,resonance:1,amount:2500,envelope:{attack:.03,decay:.4,sustain:.25,release:.4}},chorus:{enabled:false,mix:.25,rate:.8,depth:.003},delay:{enabled:false,mix:.2,time:.3,feedback:.3},reverb:{enabled:true,mix:.18},compressor:{enabled:true,threshold:-18,ratio:4},master:.65};
+export const clonePatch=(p:Patch):Patch=>JSON.parse(JSON.stringify(p));
+export const frequency=(note:number,tuning=440)=>tuning*2**((note-69)/12);
+export function validPatch(value:unknown):value is Patch {
+ const check=(v:unknown,d:unknown):boolean=>typeof d==='number'?typeof v==='number'&&Number.isFinite(v):typeof d==='boolean'?typeof v==='boolean':typeof d==='string'?['sine','triangle','square','sawtooth'].includes(String(v)):!!v&&typeof v==='object'&&Object.entries(d as object).every(([k,x])=>check((v as Record<string,unknown>)[k],x));
+ if(!check(value,defaults))return false;
+ const p=value as Patch; if(!Array.isArray(p.osc)||p.osc.length!==2)return false; const env=(e:EnvelopeSettings)=>e.attack>=.005&&e.attack<=5&&e.decay>=.005&&e.decay<=5&&e.sustain>=0&&e.sustain<=1&&e.release>=.01&&e.release<=8;
+ return env(p.amp)&&env(p.filter.envelope)&&p.master>=0&&p.master<=1&&p.mix>=0&&p.mix<=1&&p.tuning>=400&&p.tuning<=480&&p.osc.every(o=>o.volume>=0&&o.volume<=1&&Math.abs(o.octave)<=2&&Math.abs(o.detune)<=100)&&p.filter.cutoff>=40&&p.filter.cutoff<=18000&&p.filter.resonance>=0&&p.filter.resonance<=18&&p.filter.amount>=0&&p.filter.amount<=12000&&p.delay.time>=.05&&p.delay.time<=1&&p.delay.feedback>=0&&p.delay.feedback<=.8&&[p.chorus.mix,p.delay.mix,p.reverb.mix].every(x=>x>=0&&x<=1)&&p.chorus.rate>=.1&&p.chorus.rate<=5&&p.chorus.depth>=0&&p.chorus.depth<=.01&&p.compressor.threshold>=-50&&p.compressor.threshold<=0&&p.compressor.ratio>=1&&p.compressor.ratio<=20;
+}

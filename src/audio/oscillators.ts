@@ -1,0 +1,2 @@
+import {frequency,type Patch} from './parameters';
+export function createOscillators(ctx:BaseAudioContext,note:number,p:Patch,target:AudioNode){return p.osc.map((o,i)=>{const osc=ctx.createOscillator(),gain=ctx.createGain();osc.type=o.wave;osc.frequency.value=frequency(note+o.octave*12,p.tuning);osc.detune.value=o.detune;gain.gain.value=o.volume*(i?p.mix:1-p.mix);osc.connect(gain).connect(target);return{osc,gain}})}

@@ -1,0 +1,12 @@
+import {readFile,writeFile} from 'node:fs/promises';
+const html=await readFile('dist/index.html','utf8');
+const script=html.match(/<script[^>]+src="\.\/([^\"]+)"[^>]*><\/script>/);
+const style=html.match(/<link[^>]+href="\.\/([^\"]+\.css)"[^>]*>/);
+if(!script||!style)throw new Error('Build não encontrada');
+let js=await readFile('dist/'+script[1],'utf8');
+js=js.replace(/navigator\.serviceWorker\.register\([^)]*\)\.catch\(console\.warn\)/g,'Promise.resolve()');
+const css=await readFile('dist/'+style[1],'utf8');
+const icon=await readFile('dist/icon.svg','utf8');
+const out=html.replace(script[0],()=>'<script type="module">'+js.replace(/<\/script/gi,'<\\/script')+'</script>').replace(style[0],()=>'<style>'+css+'</style>').replace(/<link rel="manifest"[^>]*\/>/,'').replace('./icon.svg','data:image/svg+xml,'+encodeURIComponent(icon));
+await writeFile('Ondas.html',out);
+console.log('Ondas.html criado: '+Buffer.byteLength(out)+' bytes');

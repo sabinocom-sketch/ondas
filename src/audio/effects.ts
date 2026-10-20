@@ -1,0 +1,18 @@
+import type {Patch} from './parameters';
+export function safetyCurve(){const curve=new Float32Array(4097);for(let i=0;i<curve.length;i++){const x=i*2/(curve.length-1)-1,a=Math.abs(x);curve[i]=Math.sign(x)*(a<=.7?a:.7+.29*(1-Math.exp(-(a-.7)/.29)))}return curve}
+export class Effects {
+ input:GainNode;percussionInput:GainNode;output:GainNode;recordingTap:GainNode;analyser:AnalyserNode;nodes:AudioNode[]=[];lfo:OscillatorNode;
+ chorusWet:GainNode;delayWet:GainNode;reverbWet:GainNode;feedback:GainNode;delay:DelayNode;depth:GainNode;compressor:DynamicsCompressorNode;compWet:GainNode;compDry:GainNode;
+ constructor(readonly ctx:BaseAudioContext){
+ const gain=()=>ctx.createGain();this.input=gain();const chorus=ctx.createDelay(.1),chorusSum=gain();chorus.delayTime.value=.02;this.chorusWet=gain();this.lfo=ctx.createOscillator();this.depth=gain();this.lfo.connect(this.depth).connect(chorus.delayTime);this.input.connect(chorus).connect(this.chorusWet).connect(chorusSum);this.input.connect(chorusSum);this.lfo.start();
+ this.delay=ctx.createDelay(1);this.feedback=gain();this.delayWet=gain();const delaySum=gain();chorusSum.connect(delaySum);chorusSum.connect(this.delay).connect(this.feedback).connect(this.delay);this.delay.connect(this.delayWet).connect(delaySum);
+ const reverb=ctx.createConvolver();const buffer=ctx.createBuffer(2,ctx.sampleRate*2,ctx.sampleRate);let seed=71;for(let ch=0;ch<2;ch++){const data=buffer.getChannelData(ch);for(let i=0;i<data.length;i++){seed=(seed*16807)%2147483647;data[i]=(seed/2147483647*2-1)*Math.pow(1-i/data.length,3)}}reverb.buffer=buffer;this.reverbWet=gain();const sum=gain();delaySum.connect(sum);delaySum.connect(reverb).connect(this.reverbWet).connect(sum);
+ this.percussionInput=gain();this.percussionInput.gain.value=.35;this.percussionInput.connect(sum);
+ this.compressor=ctx.createDynamicsCompressor();this.compressor.knee.value=20;this.compressor.attack.value=.003;this.compressor.release.value=.2;this.compWet=gain();this.compDry=gain();this.output=gain();this.recordingTap=gain();sum.connect(this.compressor).connect(this.compWet).connect(this.recordingTap);sum.connect(this.compDry).connect(this.recordingTap);this.recordingTap.connect(this.output);this.analyser=ctx.createAnalyser();this.analyser.fftSize=2048;const safety=ctx.createWaveShaper();safety.curve=safetyCurve();safety.oversample='2x';this.output.connect(safety).connect(this.analyser).connect(ctx.destination);
+ // A fixed conservative voice sum prevents hard clipping even with effects bypassed.
+ this.input.gain.value=.04;
+ this.nodes=[this.recordingTap,this.percussionInput,this.input,chorus,chorusSum,this.chorusWet,this.depth,this.delay,this.feedback,this.delayWet,delaySum,reverb,this.reverbWet,sum,this.compressor,this.compWet,this.compDry,this.output,safety,this.analyser];
+ }
+ update(p:Patch){const t=this.ctx.currentTime;const set=(a:AudioParam,v:number)=>a.setTargetAtTime(v,t,.025);set(this.chorusWet.gain,p.chorus.enabled?p.chorus.mix:0);set(this.lfo.frequency,p.chorus.rate);set(this.depth.gain,p.chorus.depth);set(this.delayWet.gain,p.delay.enabled?p.delay.mix:0);set(this.delay.delayTime,p.delay.time);set(this.feedback.gain,p.delay.feedback);set(this.reverbWet.gain,p.reverb.enabled?p.reverb.mix:0);set(this.compressor.threshold,p.compressor.threshold);set(this.compressor.ratio,p.compressor.ratio);set(this.compWet.gain,p.compressor.enabled?1:0);set(this.compDry.gain,p.compressor.enabled?0:1);set(this.output.gain,p.master)}
+ dispose(){this.lfo.stop();this.lfo.disconnect();this.nodes.forEach(n=>n.disconnect())}
+}
