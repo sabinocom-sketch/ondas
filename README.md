@@ -143,14 +143,14 @@ Em **Compor**, usar **Bateria ↓** para chegar à grelha. São oito pistas sint
 
 ## Gravação multipistas
 
-O **Arranjador multipistas**, abaixo do gravador estéreo, guarda até oito pistas de áudio independentes, com até dois minutos por pista. A régua temporal mostra formas de onda, permite posicionar o cursor e mover clips por arrasto com grelha opcional de ¼ de segundo.
+O **Arranjador multipistas**, abaixo do gravador estéreo, aceita o número de pistas de áudio independentes que o dispositivo conseguir manter, com até dois minutos por pista. A régua temporal mostra formas de onda, permite posicionar o cursor e mover clips por arrasto com grelha opcional de ¼ de segundo.
 
 1. Escolher o instrumento e premir **Gravar**. Tocar no piano ou iniciar a composição/bateria. Premir **Parar** quando terminar.
 2. Escolher outro instrumento e repetir. As pistas anteriores tocam desde o início enquanto a nova tomada é captada. O áudio dessas pistas não é regravado na nova tomada.
 3. Ajustar nome, volume, **Mute**, **Solo** e **Início (s)**. O início pode ser deslocado até 120 segundos; é necessário parar para editar esse valor. Volumes, mute e solo podem mudar durante a reprodução.
 4. Posicionar o cursor na régua e usar **Reproduzir** para ouvir a partir desse ponto. **Preparar mistura WAV** cria uma descarga estéreo com os controlos das pistas, volume master e proteção de saída aplicados. **WAV** descarrega a tomada original, antes do volume master e dos controlos da pista.
 
-**Importar áudio** aceita ficheiros reconhecidos pelo navegador, até 25 MB e dois minutos. As pistas permanecem apenas em memória nesta sessão; descarregar cada WAV permite reimportá-lo posteriormente. A composição JSON não inclui estas pistas de áudio nem os seus ajustes. Não existe ainda um ficheiro de projeto multipistas.
+**Importar áudio** aceita ficheiros reconhecidos pelo navegador, até 25 MB e dois minutos. O projeto multipistas é guardado automaticamente em IndexedDB neste navegador: áudio, nomes, posições, volume, panorama, Mute/Solo, zoom e grelha regressam na sessão seguinte. A composição JSON do piano roll continua separada. A quantidade prática de pistas depende da memória e quota de armazenamento disponíveis no dispositivo; exportar os WAV continua recomendado como cópia de segurança.
 
 A gravação inclui os efeitos/compressor do instrumento; a reprodução das pistas não volta a aplicar esses efeitos. A captação usa ScriptProcessor e o agendamento das bases usa o relógio Web Audio. A latência de entrada/captação não tem compensação automática; o campo Início permite alinhar tomadas manualmente. Não se garante alinhamento à amostra, nem captação sem falhas se a interface estiver sobrecarregada. Pânico, mudança de modo, perda de foco e suspensão do áudio interrompem o transporte e conservam a tomada captada quando possível. Não há captação de microfone nesta versão.
 

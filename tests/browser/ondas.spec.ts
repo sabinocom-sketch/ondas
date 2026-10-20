@@ -171,6 +171,15 @@ test('multipistas: overdub isolado, mistura, controlos e importação',async({pa
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);await panel.screenshot({path:'artifacts/multipistas-'+test.info().project.name+'.png'});expect(errors).toEqual([]);
 });
 
+test('multipistas: mais de oito pistas persistem depois de recarregar',async({page})=>{
+ const panel=page.getByRole('region',{name:'Estúdio multipistas'}),{encodeWav}=await import('../../src/audio/recorder');
+ const samples=new Float32Array(4410*2);for(let i=0;i<samples.length/2;i++)samples[i*2]=samples[i*2+1]=.1*Math.sin(i/44100*Math.PI*440*2);
+ const wav=Buffer.from(encodeWav([samples],44100));
+ for(let i=1;i<=9;i++)await panel.getByLabel('Importar pista áudio').setInputFiles({name:`Pista-${i}.wav`,mimeType:'audio/wav',buffer:wav});
+ await expect(panel.locator('.audio-track')).toHaveCount(9);await panel.getByLabel('Nome da pista 9').fill('Nona pista');await expect(panel.getByText('9 pistas · guardado',{exact:true})).toBeVisible({timeout:30000});
+ await page.reload({waitUntil:'domcontentloaded'});const restored=page.getByRole('region',{name:'Estúdio multipistas'});await expect(restored.locator('.audio-track')).toHaveCount(9,{timeout:30000});await expect(restored.getByLabel('Nome da pista 9')).toHaveValue('Nona pista');await expect(restored.getByText('Projeto restaurado com 9 pistas.')).toBeVisible();
+});
+
 test('mixer: panorama e exportação normalizada a 48 kHz',async({page})=>{
  const panel=page.getByRole('region',{name:'Estúdio multipistas'});
  const {encodeWav}=await import('../../src/audio/recorder');
