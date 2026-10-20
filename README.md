@@ -2,6 +2,8 @@
 
 Sintetizador polifónico para usar diretamente no navegador de telemóveis, tablets e computadores. Não requer aplicação nativa; a instalação como PWA é opcional. React, TypeScript, Vite e Web Audio API, sem biblioteca de síntese.
 
+Inclui também instrumentos reais leves carregados apenas quando selecionados: piano de cauda, guitarra acústica e guitarra elétrica. As amostras ficam na cache do navegador após a primeira utilização. A coleção deriva de `nbrosowsky/tonejs-instruments`; código MIT e amostras CC BY 3.0. A reprodução por amostras requer Internet na primeira utilização de cada instrumento.
+
 ## HTML autónomo
 
 Abrir o ficheiro Ondas.html diretamente no navegador, sem Node.js ou servidor. Inclui o código, estilos e ícone; não requer ligação à Internet. Clicar em Ativar áudio para começar. A instalação PWA aplica-se apenas à versão servida por HTTPS. A persistência de presets em ficheiros locais depende do navegador.
