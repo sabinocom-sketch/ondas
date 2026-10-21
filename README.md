@@ -165,3 +165,11 @@ A gravação inclui os efeitos/compressor do instrumento; a reprodução das pis
 O estúdio inclui panorama estéreo por pista (E/Centro/D), medidores de pico durante a reprodução, master partilhado com o sintetizador e **Repor mixer**. Os ajustes de volume, panorama, Mute e Solo são aplicados em tempo real e na mistura exportada.
 
 No painel **Exportação WAV**, escolher a mistura completa ou uma pista individual processada, definir o nome e selecionar 44,1 ou 48 kHz (PCM de 16 bits, estéreo). A opção de normalização coloca o pico final a −1 dBFS e mantém o silêncio intacto. A exportação individual respeita volume, panorama e início, ignorando Mute/Solo. O link **WAV da pista** continua a fornecer a tomada original. Alterar os ajustes invalida a mistura preparada; voltar a preparar antes de descarregar.
+
+## Composição multipistas e blocos
+
+O modo **Compor** suporta agora várias pistas de notas por bloco, cada uma com nome, instrumento, volume, mute e solo. Os blocos têm quatro compassos, podem ser nomeados, duplicados de forma independente e ordenados numa sequência. O transporte agenda antecipadamente notas e bateria no relógio do `AudioContext`; parar a sequência preserva notas tocadas manualmente.
+
+As ajudas opcionais incluem tonalidade, escala maior ou menor natural, destaque das notas da escala, restrição apenas para notas novas ou movidas e tríades diatónicas com pré-escuta. Notas existentes nunca são alteradas automaticamente.
+
+O projeto v2 guarda pistas, instrumentos, notas, bateria, blocos, ordem e andamento. Pode ser exportado/importado em JSON e migra composições v1. **Exportar composição WAV** renderiza offline a sequência completa em estéreo com instrumentos, volumes e efeitos, com limite de 12 minutos para proteger a memória. Instrumentos por amostras requerem Internet na primeira utilização e usam uma cache própria preservada entre versões da aplicação.

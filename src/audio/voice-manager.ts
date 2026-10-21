@@ -22,7 +22,7 @@ export class VoiceManager {
     voice.release(true);
   }
 
-  noteOn(id: string, note: number, patch: Patch) {
+  noteOn(id: string, note: number, patch: Patch, at = this.ctx.currentTime) {
     const existing = this.voices.get(id);
     if (existing) {
       if (existing.held) return;
@@ -37,16 +37,16 @@ export class VoiceManager {
       if (this.voices.get(id) === voice) this.voices.delete(id);
       this.retiring.delete(voice);
       this.changed();
-    });
+    },at);
     this.voices.set(id, voice);
     this.changed();
   }
 
-  noteOff(id: string) {
+  noteOff(id: string, at = this.ctx.currentTime) {
     const voice = this.voices.get(id);
     if (!voice) return;
     voice.held = false;
-    if (!this.sustain) voice.release();
+    if (!this.sustain) voice.release(false,at);
     this.changed();
   }
 

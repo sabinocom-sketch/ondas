@@ -16,24 +16,17 @@ export const noteName=(note:number)=>['Dó','Dó♯','Ré','Ré♯','Mi','Fá','
 
 export const hasEvents=(p:Composition)=>p.notes.length>0||Boolean(p.drums?.tracks.some(t=>!t.muted&&t.volume>0&&t.steps.some(v=>v>0)));
 interface SequencerEngine{
- drumHit?(id:DrumId,velocity:number):void;start():Promise<void>;context?:{currentTime:number;state:string};noteOn(id:string,note:number):void;sequenceOff(id:string):void;stopSequence():void;
+ drumHit?(id:DrumId,velocity:number,at?:number):void;start():Promise<void>;context?:{currentTime:number;state:string};sequenceNote(id:string,note:number,start:number,end:number):void;sequenceOff(id:string,at?:number):void;stopSequence():void;
  listeners:Set<()=>void>;panicListeners:Set<()=>void>;
 }
 /** Foreground transport follows the audio clock, not accumulated timer ticks. */
 export class RollPlayer{
- private drumStep=-1;private timer?:ReturnType<typeof setInterval>;private epoch=0;private origin=0;private active=new Set<string>();private composition=emptyComposition();running=false;private starting=false;
+ private timer?:ReturnType<typeof setInterval>;private epoch=0;private origin=0;private scheduledStep=0;private composition=emptyComposition();running=false;private starting=false;readonly lookAhead=.12;
  constructor(private engine:SequencerEngine,private changed:(step:number,running:boolean)=>void){engine.listeners.add(this.state);engine.panicListeners.add(this.stop)}
  private state=()=>{if(this.engine.context?.state!=='running'&&this.running)this.stop()};
- async start(p:Composition){this.stop();if(!hasEvents(p))return;const epoch=++this.epoch;this.starting=true;await this.engine.start();if(epoch!==this.epoch)return;this.starting=false;this.composition=JSON.parse(JSON.stringify(p));this.origin=this.engine.context!.currentTime;this.running=true;this.drumStep=-1;this.tick();this.timer=setInterval(()=>this.tick(),20)}
- tick(){if(!this.running)return;const t=this.engine.context;if(!t||t.state!=='running'){this.stop();return}const now=notesAt(this.composition,t.currentTime-this.origin);if(now.step===STEPS){this.stop();return}
- const absoluteStep=now.cycle*STEPS+Math.floor(now.step);
- if(absoluteStep!==this.drumStep){this.drumStep=absoluteStep;const index=Math.floor(now.step);for(const track of this.composition.drums?.tracks??[])if(!track.muted&&track.volume>0&&track.steps[index]>0)this.engine.drumHit?.(track.id,track.volume*track.steps[index])}
- const next=new Set(now.notes.map(n=>`roll:${this.epoch}:${now.cycle}:${n.id}`));
- const previous=this.active;this.active=next;
- previous.forEach(id=>{if(!next.has(id))this.engine.sequenceOff(id)});
- now.notes.forEach(n=>{const id=`roll:${this.epoch}:${now.cycle}:${n.id}`;if(!previous.has(id))this.engine.noteOn(id,n.note)});
- this.changed(now.step,true);
- }
- stop=()=>{this.epoch++;const wasActive=this.running||this.starting;this.running=false;this.starting=false;clearInterval(this.timer);this.active.clear();this.engine.stopSequence();if(wasActive)this.changed(0,false)};
+ async start(p:Composition){this.stop();if(!hasEvents(p))return;const epoch=++this.epoch;this.starting=true;await this.engine.start();if(epoch!==this.epoch)return;this.starting=false;this.composition=JSON.parse(JSON.stringify(p));this.origin=this.engine.context!.currentTime+.05;this.scheduledStep=0;this.running=true;this.tick();this.timer=setInterval(()=>this.tick(),25)}
+ private schedule(step:number,stepTime:number,stepDuration:number){const cycle=Math.floor(step/STEPS),index=step%STEPS;if(!this.composition.loop&&cycle>0)return;for(const track of this.composition.drums?.tracks??[])if(!track.muted&&track.volume>0&&track.steps[index]>0)this.engine.drumHit?.(track.id,track.volume*track.steps[index],stepTime);for(const note of this.composition.notes)if(note.start===index){const id=`roll:${this.epoch}:${cycle}:${note.id}`;this.engine.sequenceNote(id,note.note,stepTime,stepTime+note.length*stepDuration)}}
+ tick(){if(!this.running)return;const t=this.engine.context;if(!t||t.state!=='running'){this.stop();return}const stepDuration=60/this.composition.bpm/4,elapsed=t.currentTime-this.origin;if(!this.composition.loop&&elapsed>=STEPS*stepDuration){this.stop();return}const horizon=Math.max(0,t.currentTime+this.lookAhead-this.origin),last=Math.floor(horizon/stepDuration);while(this.scheduledStep<=last&&(this.composition.loop||this.scheduledStep<STEPS)){const at=this.origin+this.scheduledStep*stepDuration;this.schedule(this.scheduledStep,at,stepDuration);this.scheduledStep++}const visual=notesAt(this.composition,Math.max(0,elapsed));this.changed(visual.step,true)}
+ stop=()=>{this.epoch++;const wasActive=this.running||this.starting;this.running=false;this.starting=false;clearInterval(this.timer);this.engine.stopSequence();if(wasActive)this.changed(0,false)};
  dispose(){this.stop();this.engine.listeners.delete(this.state);this.engine.panicListeners.delete(this.stop)}
 }

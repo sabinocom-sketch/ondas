@@ -17,20 +17,22 @@ async function sampleResponse(url:string){
 }
 
 export type SampleArticulation={gain?:number;attack?:number;brightness?:number};
-type SampleVoice={source:AudioBufferSourceNode;gain:GainNode;filter:BiquadFilterNode;released:boolean};
+type SampleVoice={id:string;source:AudioBufferSourceNode;gain:GainNode;filter:BiquadFilterNode;released:boolean;started:number;dispose:()=>void};
 export class SamplePlayer{
- private buffers:{note:number;buffer:AudioBuffer}[]=[];private voices=new Map<string,SampleVoice>();private sustain=false;private loadEpoch=0;instrument?:SampleInstrumentId;
- constructor(private ctx:AudioContext,private destination:AudioNode){}
+ private buffers:{note:number;buffer:AudioBuffer}[]=[];private voices=new Map<string,SampleVoice>();private retiring=new Set<SampleVoice>();private sustain=false;private loadEpoch=0;instrument?:SampleInstrumentId;
+ constructor(private ctx:BaseAudioContext,private destination:AudioNode,readonly limit=16){}
  get voiceCount(){return this.voices.size}
+ get loaded(){return this.buffers.length>0}
  async load(id:SampleInstrumentId){
   const ticket=++this.loadEpoch,instrument=sampleLibrary.find(item=>item.id===id);if(!instrument)throw new Error('Instrumento desconhecido');
   const decoded=await Promise.all(instrument.roots.map(async root=>{const url=`${CDN}${instrument.folder}/${root}.mp3`,response=await sampleResponse(url);if(!response.ok)throw new Error(`Não foi possível descarregar ${instrument.name}`);return{note:noteMidi(root),buffer:await this.ctx.decodeAudioData(await response.arrayBuffer())}}));
   if(ticket!==this.loadEpoch)return;this.panic();this.buffers=decoded;this.instrument=id;
  }
- noteOn(id:string,note:number,articulation:SampleArticulation={}){if(!this.buffers.length)return;this.release(id,.012);const sample=this.buffers.reduce((best,item)=>Math.abs(item.note-note)<Math.abs(best.note-note)?item:best),source=this.ctx.createBufferSource(),filter=this.ctx.createBiquadFilter(),gain=this.ctx.createGain(),level=articulation.gain??.82,attack=articulation.attack??.009;source.buffer=sample.buffer;source.playbackRate.value=Math.pow(2,(note-sample.note)/12);filter.type='lowpass';filter.frequency.value=articulation.brightness??18000;filter.Q.value=.45;gain.gain.setValueAtTime(.0001,this.ctx.currentTime);gain.gain.exponentialRampToValueAtTime(level,this.ctx.currentTime+attack);source.connect(filter).connect(gain).connect(this.destination);const voice={source,gain,filter,released:false};this.voices.set(id,voice);source.onended=()=>{if(this.voices.get(id)===voice)this.voices.delete(id);source.disconnect();filter.disconnect();gain.disconnect()};source.start()}
- noteOff(id:string){const voice=this.voices.get(id);if(!voice)return;if(this.sustain)voice.released=true;else this.release(id)}
+ noteOn(id:string,note:number,articulation:SampleArticulation={},at=this.ctx.currentTime){if(!this.buffers.length)return;this.release(id,.012);if(this.voices.size>=this.limit){const all=[...this.voices.values()],oldest=all.find(v=>v.released)||all[0];this.release(oldest.id,.015)}const sample=this.buffers.reduce((best,item)=>Math.abs(item.note-note)<Math.abs(best.note-note)?item:best),source=this.ctx.createBufferSource(),filter=this.ctx.createBiquadFilter(),gain=this.ctx.createGain(),level=articulation.gain??.82,attack=articulation.attack??.009,start=Math.max(this.ctx.currentTime,at);source.buffer=sample.buffer;source.playbackRate.value=Math.pow(2,(note-sample.note)/12);filter.type='lowpass';filter.frequency.value=articulation.brightness??18000;filter.Q.value=.45;gain.gain.setValueAtTime(.0001,start);gain.gain.exponentialRampToValueAtTime(level,start+attack);source.connect(filter).connect(gain).connect(this.destination);let disposed=false;const voice:SampleVoice={id,source,gain,filter,released:false,started:start,dispose:()=>{if(disposed)return;disposed=true;if(this.voices.get(id)===voice)this.voices.delete(id);this.retiring.delete(voice);source.onended=null;try{source.stop()}catch{}source.disconnect();filter.disconnect();gain.disconnect();source.buffer=null}};this.voices.set(id,voice);source.onended=voice.dispose;source.start(start)}
+ noteOff(id:string,at=this.ctx.currentTime){const voice=this.voices.get(id);if(!voice)return;if(this.sustain&&at<=this.ctx.currentTime)voice.released=true;else this.release(id,.12,at)}
  setSustain(value:boolean){this.sustain=value;if(!value)for(const [id,voice]of this.voices)if(voice.released)this.release(id)}
- private release(id:string,time=.12){const voice=this.voices.get(id);if(!voice)return;this.voices.delete(id);const now=this.ctx.currentTime;voice.gain.gain.cancelScheduledValues(now);voice.gain.gain.setTargetAtTime(.0001,now,Math.max(.005,time/4));try{voice.source.stop(now+time)}catch{/* A amostra já terminou. */}}
- panic(){for(const id of[...this.voices.keys()])this.release(id,.015);this.sustain=false}
- dispose(){this.loadEpoch++;this.panic();this.buffers=[]}
+ private release(id:string,time=.12,at=this.ctx.currentTime){const voice=this.voices.get(id);if(!voice)return;this.voices.delete(id);if(this.retiring.size>=this.limit)this.retiring.values().next().value?.dispose();this.retiring.add(voice);voice.released=true;const now=Math.max(voice.started,at);voice.gain.gain.cancelScheduledValues(now);voice.gain.gain.setTargetAtTime(.0001,now,Math.max(.005,time/4));try{voice.source.stop(now+time)}catch{/* A amostra já terminou. */}}
+ stopPrefix(prefix:string){for(const id of[...this.voices.keys()])if(id.startsWith(prefix))this.release(id,.015);for(const voice of[...this.retiring])if(voice.id.startsWith(prefix))voice.dispose()}
+ panic(){for(const voice of[...this.voices.values(),...this.retiring])voice.dispose();this.voices.clear();this.retiring.clear();this.sustain=false}
+ dispose(){this.loadEpoch++;this.panic();this.buffers=[];this.instrument=undefined}
 }

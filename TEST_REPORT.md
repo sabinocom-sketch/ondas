@@ -112,3 +112,13 @@ Passaram os três cenários adicionais em Chrome com viewport 820 × 1180 e toqu
 - O encerramento do Chrome na fixture excedeu 120 s após as asserções; esta falha de infraestrutura é distinta dos resultados funcionais. Não foi repetida a suite completa anterior.
 - A primeira verificação do HTML, em paralelo com outro navegador de teste, não recebeu amostras a tempo no gravador estéreo. Não é registada como validação bem-sucedida.
 - Limites: pistas apenas em memória, sem projeto multipistas persistente; sem microfone ou compensação automática da latência. Testes em dispositivos emulados não substituem testes em hardware físico.
+
+## Atualização: composição multipistas e transporte — 21/10/2026
+
+- Corrigida a duração e paragem das notas por amostras, incluindo cancelamento exclusivo da sequência, limite de 16 vozes, libertação suave e limpeza de recursos. A troca rápida de instrumentos ignora carregamentos obsoletos e a ativação do service worker preserva a cache de instrumentos.
+- O piano roll passou a usar agendamento antecipado no relógio de áudio para inícios, finais e bateria. Foram acrescentadas pistas editáveis por instrumento, volume, mute/solo, blocos independentes nomeáveis/duplicáveis/ordenáveis e reprodução do bloco ou da sequência completa.
+- Acrescentadas tonalidade, escala maior/menor natural, destaque da escala, restrição opcional de notas novas e inserção/pré-escuta de acordes diatónicos.
+- Persistência v2, ficheiro JSON versionado, migração v1, validação que preserva o projeto aberto e exportação offline da composição completa para WAV estéreo.
+- Executados agora: `npm test -- --run` — **56 testes em 10 ficheiros, todos passaram**; `npm run build` — TypeScript e Vite passaram, 63 módulos, JS 327,95 kB (102,06 kB gzip).
+- Playwright em Chrome desktop confirmou WAV RIFF estéreo com sinal PCM não silencioso. A validação móvel emulada desta atualização ficou bloqueada por timeout na ligação/arranque do Chrome antes de carregar a página. Não foi realizado teste num Android físico nem avaliação auditiva humana.
+- Os resultados históricos acima não são apresentados como repetidos nesta atualização.

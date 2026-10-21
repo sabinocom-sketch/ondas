@@ -1,0 +1,44 @@
+import {sampleLibrary} from '../audio/sampler';
+import {library} from '../presets/library';
+import {emptyDrums,validDrums,type DrumId,type DrumPattern} from './drum-pattern';
+import {HIGH,LOW,STEPS,validComposition,type Composition,type RollNote} from './composition';
+
+export type ScaleMode='major'|'minor';
+export interface NoteTrack{id:string;name:string;instrument:string;volume:number;muted:boolean;solo:boolean;notes:RollNote[]}
+export interface SongBlock{id:string;name:string;tracks:NoteTrack[];drums:DrumPattern}
+export interface SongProject{version:2;bpm:number;loop:boolean;key:number;scale:ScaleMode;restrictToScale:boolean;blocks:SongBlock[];order:string[]}
+
+const instruments=new Set([...library.map(p=>p.id),...sampleLibrary.map(p=>p.id)]);
+const uid=()=>crypto.randomUUID();
+export const newTrack=(name='Piano',instrument='piano'):NoteTrack=>({id:uid(),name,instrument,volume:.8,muted:false,solo:false,notes:[]});
+export const newBlock=(name='Bloco 1'):SongBlock=>({id:uid(),name,tracks:[newTrack()],drums:emptyDrums()});
+export const emptySong=():SongProject=>{const block=newBlock();return{version:2,bpm:110,loop:true,key:0,scale:'major',restrictToScale:false,blocks:[block],order:[block.id]}};
+
+const validNote=(n:any)=>n&&typeof n.id==='string'&&n.id.length>0&&n.id.length<=80&&Number.isInteger(n.note)&&n.note>=LOW&&n.note<=HIGH&&Number.isInteger(n.start)&&n.start>=0&&n.start<STEPS&&Number.isInteger(n.length)&&n.length>=1&&n.start+n.length<=STEPS;
+const validTrack=(t:any):t is NoteTrack=>t&&typeof t.id==='string'&&typeof t.name==='string'&&t.name.length>0&&t.name.length<=60&&instruments.has(t.instrument)&&Number.isFinite(t.volume)&&t.volume>=0&&t.volume<=1&&typeof t.muted==='boolean'&&typeof t.solo==='boolean'&&Array.isArray(t.notes)&&t.notes.length<=256&&new Set(t.notes.map((n:any)=>n?.id)).size===t.notes.length&&t.notes.every(validNote);
+const validBlock=(b:any):b is SongBlock=>b&&typeof b.id==='string'&&typeof b.name==='string'&&b.name.length>0&&b.name.length<=60&&Array.isArray(b.tracks)&&b.tracks.length>=1&&b.tracks.length<=16&&new Set(b.tracks.map((t:any)=>t?.id)).size===b.tracks.length&&b.tracks.every(validTrack)&&validDrums(b.drums);
+export function validSong(x:unknown):x is SongProject{if(!x||typeof x!=='object')return false;const p=x as SongProject;return p.version===2&&Number.isInteger(p.bpm)&&p.bpm>=40&&p.bpm<=240&&typeof p.loop==='boolean'&&Number.isInteger(p.key)&&p.key>=0&&p.key<12&&(p.scale==='major'||p.scale==='minor')&&typeof p.restrictToScale==='boolean'&&Array.isArray(p.blocks)&&p.blocks.length>=1&&p.blocks.length<=32&&new Set(p.blocks.map(b=>b?.id)).size===p.blocks.length&&p.blocks.every(validBlock)&&Array.isArray(p.order)&&p.order.length>=1&&p.order.length<=64&&p.order.every(id=>p.blocks.some(b=>b.id===id))}
+
+export function migrateComposition(value:unknown):SongProject|null{if(validSong(value))return structuredClone(value);if(!validComposition(value))return null;const old=value as Composition,block=newBlock('Bloco 1');block.tracks[0].notes=structuredClone(old.notes);block.drums=structuredClone(old.drums??emptyDrums());return{version:2,bpm:old.bpm,loop:old.loop,key:0,scale:'major',restrictToScale:false,blocks:[block],order:[block.id]}}
+const KEY='ondas.song.v2';
+export function loadSong(storage:Storage=localStorage):SongProject{try{const current=migrateComposition(JSON.parse(storage.getItem(KEY)||'null'));if(current)return current;const legacy=migrateComposition(JSON.parse(storage.getItem('ondas.composition.v1')||'null'));return legacy??emptySong()}catch{return emptySong()}}
+export function storeSong(song:SongProject,storage:Storage=localStorage){if(!validSong(song))throw new Error('Projeto de composição inválido');storage.setItem(KEY,JSON.stringify(song))}
+export function duplicateBlock(project:SongProject,id:string){const source=project.blocks.find(b=>b.id===id);if(!source)return project;const copy=structuredClone(source);copy.id=uid();copy.name=`${source.name} — cópia`;copy.tracks.forEach(track=>{track.id=uid();track.notes.forEach(note=>note.id=uid())});const at=project.order.lastIndexOf(id)+1;return{...project,blocks:[...project.blocks,copy],order:[...project.order.slice(0,at),copy.id,...project.order.slice(at)]}}
+
+const intervals:Record<ScaleMode,number[]>={major:[0,2,4,5,7,9,11],minor:[0,2,3,5,7,8,10]};
+export const scaleNotes=(key:number,mode:ScaleMode)=>new Set(intervals[mode].map(i=>(key+i)%12));
+export const inScale=(note:number,key:number,mode:ScaleMode)=>scaleNotes(key,mode).has(note%12);
+export function nearestScaleNote(note:number,key:number,mode:ScaleMode){if(inScale(note,key,mode))return note;for(let d=1;d<12;d++){if(inScale(note-d,key,mode))return note-d;if(inScale(note+d,key,mode))return note+d}return note}
+export function diatonicChord(key:number,mode:ScaleMode,degree:number,octave=4){const tones=intervals[mode],rootIndex=((degree%7)+7)%7,base=(octave+1)*12+key,at=(offset:number)=>{const index=rootIndex+offset;return base+tones[index%7]+12*Math.floor(index/7)};return[at(0),at(2),at(4)]}
+
+interface SongEngine{context?:{currentTime:number;state:string};listeners:Set<()=>void>;panicListeners:Set<()=>void>;prepareSequence(instruments:string[]):Promise<void>;sequenceNote(id:string,note:number,start:number,end:number,instrument:string,volume:number):void;drumHit?(id:DrumId,velocity:number,at?:number):void;stopSequence():void}
+export class SongPlayer{
+ private timer?:ReturnType<typeof setInterval>;private epoch=0;private origin=0;private scheduled=0;private project=emptySong();private timeline:SongBlock[]=[];running=false;starting=false;readonly lookAhead=.12;
+ constructor(private engine:SongEngine,private changed:(step:number,running:boolean,blockId?:string)=>void){engine.listeners.add(this.state);engine.panicListeners.add(this.stop)}
+ private state=()=>{if(this.engine.context?.state!=='running'&&this.running)this.stop()};
+ async start(project:SongProject,mode:'song'|'block'='song',blockId?:string){this.stop();const blocks=mode==='block'?[project.blocks.find(b=>b.id===blockId)??project.blocks[0]]:project.order.map(id=>project.blocks.find(b=>b.id===id)!).filter(Boolean);const audible=blocks.flatMap(b=>{const solo=b.tracks.some(t=>t.solo);return b.tracks.filter(t=>!t.muted&&t.volume>0&&(!solo||t.solo)&&t.notes.length)});if(!audible.length&&!blocks.some(b=>b.drums.tracks.some(t=>!t.muted&&t.volume>0&&t.steps.some(Boolean))))return;const epoch=++this.epoch;this.starting=true;await this.engine.prepareSequence(audible.map(t=>t.instrument));if(epoch!==this.epoch)return;this.project=structuredClone(project);this.timeline=mode==='block'?[structuredClone(blocks[0])]:blocks.map(block=>structuredClone(block));this.origin=this.engine.context!.currentTime+.05;this.scheduled=0;this.starting=false;this.running=true;this.tick();this.timer=setInterval(()=>this.tick(),25)}
+ private schedule(abs:number,at:number,duration:number){const blockIndex=Math.floor((abs%(this.timeline.length*STEPS))/STEPS),step=abs%STEPS,block=this.timeline[blockIndex],solo=block.tracks.some(t=>t.solo);for(const track of block.tracks)if(!track.muted&&track.volume>0&&(!solo||track.solo))for(const note of track.notes)if(note.start===step)this.engine.sequenceNote(`roll:${this.epoch}:${Math.floor(abs/(this.timeline.length*STEPS))}:${blockIndex}:${track.id}:${note.id}`,note.note,at,at+note.length*duration,track.instrument,track.volume);for(const drum of block.drums.tracks)if(!drum.muted&&drum.volume>0&&drum.steps[step]>0)this.engine.drumHit?.(drum.id,drum.volume*drum.steps[step],at)}
+ tick(){if(!this.running)return;const ctx=this.engine.context;if(!ctx||ctx.state!=='running'){this.stop();return}const duration=60/this.project.bpm/4,total=this.timeline.length*STEPS,elapsed=ctx.currentTime-this.origin;if(!this.project.loop&&elapsed>=total*duration){this.stop();return}const last=Math.floor(Math.max(0,ctx.currentTime+this.lookAhead-this.origin)/duration);while(this.scheduled<=last&&(this.project.loop||this.scheduled<total)){this.schedule(this.scheduled,this.origin+this.scheduled*duration,duration);this.scheduled++}const pos=Math.max(0,Math.floor(elapsed/duration)),block=this.timeline[Math.floor((pos%total)/STEPS)];this.changed(pos%STEPS,true,block?.id)}
+ stop=()=>{this.epoch++;const active=this.running||this.starting;this.running=false;this.starting=false;clearInterval(this.timer);this.engine.stopSequence();if(active)this.changed(0,false)};
+ dispose(){this.stop();this.engine.listeners.delete(this.state);this.engine.panicListeners.delete(this.stop)}
+}

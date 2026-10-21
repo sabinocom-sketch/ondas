@@ -1,7 +1,12 @@
-import {describe,it,expect} from 'vitest';
-import {noteMidi,sampleLibrary} from '../src/audio/sampler';
+import {describe,it,expect,vi} from 'vitest';
+import {noteMidi,SamplePlayer,sampleLibrary} from '../src/audio/sampler';
+import {Engine} from '../src/audio/engine';
+
+function samplerSetup(){const sources:any[]=[];const param=()=>({value:0,setValueAtTime:vi.fn(),exponentialRampToValueAtTime:vi.fn(),cancelScheduledValues:vi.fn(),setTargetAtTime:vi.fn()});const node=()=>({connect:vi.fn(function(this:any){return this}),disconnect:vi.fn()});const ctx:any={currentTime:1,decodeAudioData:vi.fn(async()=>({duration:1})),createBufferSource:()=>{const n={...node(),buffer:null,playbackRate:{value:1},start:vi.fn(),stop:vi.fn(),onended:null};sources.push(n);return n},createBiquadFilter:()=>({...node(),type:'lowpass',frequency:param(),Q:param()}),createGain:()=>({...node(),gain:param()})};return{ctx,sources,player:new SamplePlayer(ctx,node() as never)}}
 
 describe('instrumentos reais leves',()=>{
  it('converte nomes de samples para notas MIDI',()=>{expect(noteMidi('C4')).toBe(60);expect(noteMidi('Cs2')).toBe(37);expect(noteMidi('A5')).toBe(81)});
  it('oferece piano, guitarras e baixo com poucos samples',()=>{expect(sampleLibrary.map(i=>i.id)).toEqual(['grand-piano','acoustic-guitar','electric-guitar','electric-bass']);expect(sampleLibrary.every(i=>i.roots.length<=9)).toBe(true)});
+ it('limita a 16 vozes, liberta suavemente e para só a sequência',async()=>{const original=globalThis.fetch;vi.stubGlobal('fetch',vi.fn(async()=>({ok:true,arrayBuffer:async()=>new ArrayBuffer(1)})));try{const{player,sources}=samplerSetup();await player.load('electric-bass');for(let i=0;i<18;i++)player.noteOn('roll:'+i,28+i);expect(player.voiceCount).toBe(16);expect(sources.some(s=>s.stop.mock.calls.some((c:any[])=>c[0]>1))).toBe(true);player.noteOn('manual',40);player.stopPrefix('roll:');expect(player.voiceCount).toBe(1);player.noteOff('manual',2);expect(sources.at(-1).stop).toHaveBeenCalledWith(2.12);player.dispose();expect(sources.every(s=>s.disconnect.mock.calls.length>0)).toBe(true)}finally{vi.stubGlobal('fetch',original)}});
+ it('ignora resultados de seleções antigas e mantém o carregamento mais recente',async()=>{const engine=new Engine(),pending=new Map<string,()=>void>();engine.start=vi.fn(async()=>{}) as never;engine.context={state:'running',currentTime:0} as never;engine.sampler={load:vi.fn((id:string)=>new Promise<void>(resolve=>pending.set(id,resolve))),panic:vi.fn(),stopPrefix:vi.fn()} as never;const first=engine.selectSampleInstrument('grand-piano'),second=engine.selectSampleInstrument('electric-bass');await Promise.resolve();pending.get('electric-bass')!();await second;expect(engine.sampleInstrument).toBe('electric-bass');expect(engine.sampleLoading).toBe(false);expect(pending.has('grand-piano')).toBe(false);await first;expect(engine.sampleInstrument).toBe('electric-bass')});
 });

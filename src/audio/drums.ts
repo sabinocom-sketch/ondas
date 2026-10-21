@@ -22,14 +22,14 @@ export class DrumKit{
  readonly limit=32;
  constructor(readonly ctx:BaseAudioContext,private target:AudioNode){for(const {id} of DRUMS){const samples=drumSamples(id,ctx.sampleRate),buffer=ctx.createBuffer(1,samples.length,ctx.sampleRate);buffer.copyToChannel(samples,0);this.buffers.set(id,buffer)}}
  get activeCount(){return this.hits.size}
- trigger(id:DrumId,velocity=1){if(!this.buffers.has(id)||!Number.isFinite(velocity)||velocity<=0)return;
+ trigger(id:DrumId,velocity=1,at=this.ctx.currentTime){if(!this.buffers.has(id)||!Number.isFinite(velocity)||velocity<=0)return;
   if(id==='closedHat')for(const hit of this.hits)if(hit.id==='openHat')hit.cleanup();
   if(this.hits.size>=this.limit)this.hits.values().next().value?.cleanup();
   const source=this.ctx.createBufferSource(),gain=this.ctx.createGain();source.buffer=this.buffers.get(id)!;gain.gain.value=Math.min(1,velocity);source.connect(gain).connect(this.target);
   let timer:ReturnType<typeof setTimeout>|undefined;let cleaned=false;
   const hit={id,source,gain,cleanup:()=>{if(cleaned)return;cleaned=true;clearTimeout(timer);source.onended=null;try{source.stop()}catch{}source.disconnect();gain.disconnect();source.buffer=null;this.hits.delete(hit)}};
-  this.hits.add(hit);source.onended=hit.cleanup;source.start(this.ctx.currentTime);
-  if('resume' in this.ctx&&!('startRendering' in this.ctx))timer=setTimeout(hit.cleanup,(durations[id]+.2)*1000);
+  this.hits.add(hit);source.onended=hit.cleanup;source.start(Math.max(this.ctx.currentTime,at));
+  if('resume' in this.ctx&&!('startRendering' in this.ctx))timer=setTimeout(hit.cleanup,Math.max(0,(at-this.ctx.currentTime+durations[id]+.2)*1000));
  }
  stop(){for(const hit of this.hits)hit.cleanup()}
  dispose(){this.stop();this.buffers.clear()}
