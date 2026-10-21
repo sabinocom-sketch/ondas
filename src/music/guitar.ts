@@ -2,6 +2,10 @@ export type PickingStyle='pick'|'finger'|'rasgueado';
 
 export const guitarTuning=[40,45,50,55,59,64] as const;
 export const guitarStringNames=['Mi grave','Lá','Ré','Sol','Si','Mi agudo'] as const;
+export const guitarOpenNotes=['Mi2','Lá2','Ré3','Sol3','Si3','Mi4'] as const;
+export const portugueseNotes=['Dó','Dó♯','Ré','Ré♯','Mi','Fá','Fá♯','Sol','Sol♯','Lá','Lá♯','Si'] as const;
+
+export function midiNoteName(note:number){return portugueseNotes[note%12]+Math.floor(note/12-1)}
 
 export const guitarChords={
  'Em':[0,2,2,0,0,0],

@@ -4,7 +4,9 @@ Sintetizador polifónico para usar diretamente no navegador de telemóveis, tabl
 
 Inclui também instrumentos reais leves carregados apenas quando selecionados: piano de cauda, guitarra acústica e guitarra elétrica. As amostras ficam na cache do navegador após a primeira utilização. A coleção deriva de `nbrosowsky/tonejs-instruments`; código MIT e amostras CC BY 3.0. A reprodução por amostras requer Internet na primeira utilização de cada instrumento.
 
-As duas guitarras abrem uma interface própria com corpo ilustrado, braço de 13 casas e seis cordas animadas. O utilizador escolhe Palheta, Dedilhado ou Rasgueado; clicar numa casa seleciona e toca imediatamente a nota com o picking ativo. As teclas 1–6 repetem as cordas já escolhidas e as setas para cima/baixo palhetam o acorde selecionado, sem exigir duas ações simultâneas. Estão incluídas as formas Em, G, C, D, Am, E e A.
+As duas guitarras abrem uma interface própria com corpo ilustrado, braço de 13 casas e seis cordas animadas. Cada corda mostra o número e a nota aberta (Mi2, Lá2, Ré3, Sol3, Si3 e Mi4), e a casa selecionada apresenta o nome da nota resultante. O utilizador escolhe Palheta, Dedilhado ou Rasgueado; clicar numa casa seleciona e toca imediatamente a nota com o picking ativo. As teclas 1–6 repetem as cordas já escolhidas e as setas para cima/baixo palhetam o acorde selecionado, sem exigir duas ações simultâneas. Estão incluídas as formas Em, G, C, D, Am, E e A.
+
+O baixo elétrico usa amostras próprias e uma interface de quatro cordas animadas afinadas em Mi1, Lá1, Ré2 e Sol2. Permite Dedos, Palheta, Slap e Palm mute, com durações e resposta visual distintas. As teclas 1–4 repetem as cordas selecionadas e o visor mostra sempre a última nota tocada.
 
 ## HTML autónomo
 

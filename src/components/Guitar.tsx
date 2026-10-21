@@ -1,6 +1,6 @@
 import {useEffect,useRef,useState,type PointerEvent} from 'react';
 import type {MusicalInput} from '../music/input';
-import {chordNotes,guitarChords,guitarStringNames,guitarTuning,pickingDelay,type GuitarChordName,type PickingStyle} from '../music/guitar';
+import {chordNotes,guitarChords,guitarOpenNotes,guitarStringNames,guitarTuning,midiNoteName,pickingDelay,type GuitarChordName,type PickingStyle} from '../music/guitar';
 
 const fretMarks=new Set([3,5,7,9,12]);
 
@@ -29,9 +29,9 @@ export function Guitar({input,electric=false}:{input:MusicalInput;electric?:bool
     <svg viewBox="0 0 330 420" role="img"><defs><linearGradient id={'wood-'+(electric?'e':'a')} x1="0" x2="1"><stop stopColor={electric?'#841f27':'#b56b32'}/><stop offset=".5" stopColor={electric?'#e25543':'#e0a15f'}/><stop offset="1" stopColor={electric?'#64141d':'#8a4a24'}/></linearGradient></defs><path className="guitar-body" fill={`url(#wood-${electric?'e':'a'})`} d={electric?'M79 365C24 339 35 274 82 249c-25-58 23-108 71-76 37-31 90-4 83 52 54 21 67 89 21 127-42 35-130 37-178 13Z':'M74 370c-54-34-39-106 12-129-31-52 12-104 65-74 43-31 89 20 61 72 59 20 75 96 22 132-43 29-119 27-160-1Z'}/><circle className="sound-hole" cx="153" cy="273" r={electric?18:36}/><rect className="bridge" x="104" y="337" width="98" height="13" rx="4"/><path className="neck" d="M132 259 143 45h24l11 214Z"/><path className="headstock" d="M139 51 132 8h46l-12 43Z"/>{[0,1,2,3,4,5].map(i=><line key={i} className={'body-string '+(vibrating.has(i)?'vibrating':'')} x1={145+i*3.2} y1="24" x2={125+i*12} y2="343"/>)}</svg>
    </div>
    <div className="fretboard-wrap">
-    <div className="string-labels" aria-hidden="true">{guitarStringNames.map((name,i)=><span key={name}>{6-i}</span>)}</div>
+    <div className="string-labels" aria-hidden="true">{guitarStringNames.map((name,i)=><span key={name}><b>{6-i}</b><em>{guitarOpenNotes[i]}</em></span>)}</div>
     <div className="fretboard" role="grid" aria-label="Braço da guitarra — toca numa casa">
-     {guitarStringNames.map((name,string)=><div className={'guitar-string '+(vibrating.has(string)?'vibrating':'')} role="row" key={name}>{Array.from({length:13},(_,fret)=><button key={fret} role="gridcell" className={(frets[string]===fret?'selected ':'')+(fretMarks.has(fret)?'marked':'')} aria-label={`${name}, ${fret===0?'corda solta':`casa ${fret}`}`} aria-pressed={frets[string]===fret} onPointerDown={e=>touch(e,string,fret)}><span>{frets[string]===fret?'●':''}</span></button>)}</div>)}
+     {guitarStringNames.map((name,string)=><div className={'guitar-string '+(vibrating.has(string)?'vibrating':'')} role="row" key={name}>{Array.from({length:13},(_,fret)=>{const note=midiNoteName(guitarTuning[string]+fret);return <button key={fret} role="gridcell" className={(frets[string]===fret?'selected ':'')+(fretMarks.has(fret)?'marked':'')} aria-label={`${name}, ${note}, ${fret===0?'corda solta':`casa ${fret}`}`} aria-pressed={frets[string]===fret} onPointerDown={e=>touch(e,string,fret)}><span>{frets[string]===fret?note:''}</span></button>})}</div>)}
     </div>
    </div>
   </div>

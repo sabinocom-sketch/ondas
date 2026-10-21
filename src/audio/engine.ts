@@ -3,13 +3,13 @@ import type {DrumId} from '../music/drum-pattern';
 import {defaults,clonePatch,validPatch,type Patch} from './parameters';
 import {Effects} from './effects';
 import {VoiceManager} from './voice-manager';
-import {SamplePlayer,type SampleInstrumentId} from './sampler';
+import {SamplePlayer,type SampleArticulation,type SampleInstrumentId} from './sampler';
 export class Engine {
  drums?:DrumKit;context?:AudioContext;effects?:Effects;manager?:VoiceManager;sampler?:SamplePlayer;sampleInstrument?:SampleInstrumentId;sampleLoading=false;patch=clonePatch(defaults);listeners=new Set<()=>void>();panicListeners=new Set<()=>void>();
  emit=()=>this.listeners.forEach(fn=>fn());
  async start(){if(!this.context||this.context.state==='closed'){this.drums?.dispose();this.sampler?.dispose();this.effects?.dispose();this.context=new AudioContext({latencyHint:'interactive'});this.effects=new Effects(this.context);this.effects.update(this.patch);this.drums=new DrumKit(this.context,this.effects.percussionInput);this.manager=new VoiceManager(this.context,this.effects.input,16,this.emit);this.sampler=new SamplePlayer(this.context,this.effects.input);this.context.onstatechange=()=>{if(this.context?.state!=='running')this.panic();this.emit()}}await this.context.resume();this.emit()}
  async selectSampleInstrument(id?:SampleInstrumentId){this.panic();this.sampleInstrument=id;if(!id){this.sampleLoading=false;this.emit();return}await this.start();this.sampleLoading=true;this.emit();try{await this.sampler!.load(id)}catch(e){this.sampleInstrument=undefined;throw e}finally{this.sampleLoading=false;this.emit()}}
- noteOn(id:string,note:number){if(this.context?.state!=='running')return;if(this.sampleInstrument)this.sampler?.noteOn(id,note);else this.manager?.noteOn(id,note,this.patch);this.emit()}
+ noteOn(id:string,note:number,articulation?:SampleArticulation){if(this.context?.state!=='running')return;if(this.sampleInstrument)this.sampler?.noteOn(id,note,articulation);else this.manager?.noteOn(id,note,this.patch);this.emit()}
  noteOff(id:string){if(this.sampleInstrument)this.sampler?.noteOff(id);else this.manager?.noteOff(id);this.emit()}
  sustain(v:boolean){this.manager?.setSustain(v);this.sampler?.setSustain(v)}
  setPatch(p:Patch){if(!validPatch(p))throw new Error('Parâmetros inválidos');this.patch=clonePatch(p);this.manager?.update(p);this.effects?.update(p);this.emit()}
