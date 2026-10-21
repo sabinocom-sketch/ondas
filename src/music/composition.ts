@@ -1,5 +1,5 @@
 import {emptyDrums,validDrums,type DrumPattern,type DrumId} from './drum-pattern';
-export const STEPS=64,LOW=48,HIGH=95;
+export const STEPS=64,LOW=24,HIGH=95;
 export interface RollNote{id:string;note:number;start:number;length:number}
 export interface Composition{version:1;bpm:number;loop:boolean;notes:RollNote[];drums?:DrumPattern}
 export const emptyComposition=():Composition=>({version:1,bpm:110,loop:true,notes:[],drums:emptyDrums()});

@@ -127,7 +127,7 @@ O botão **Piano em ecrã inteiro**, junto às setas do teclado, mostra apenas o
 
 ## Compor no piano roll
 
-- **Compor** abre uma grelha de quatro compassos em 4/4: 64 passos de semicolcheia e notas de Dó3 a Si6. Usa o preset selecionado na biblioteca.
+- **Compor** abre uma grelha de quatro compassos em 4/4: 64 passos de semicolcheia e notas de Dó1 a Si6. Cada pista usa o seu instrumento independente.
 - Tocar numa célula cria uma nota. Selecionar uma nota permite alterar altura, início e duração nos controlos. Arrastar move; a extremidade direita altera a duração. No telemóvel, arrastar uma área vazia desloca a grelha.
 - **Nova nota** prepara o próximo início; **Adicionar nota** insere a nota definida pelos controlos. Notas no mesmo passo formam acordes. **Apagar nota**, Delete/Backspace e **Desfazer** permitem corrigir.
 - Andamento entre 40 e 240 BPM; opção de repetição. A edição fica bloqueada durante a reprodução. **Parar composição** termina apenas as vozes da sequência; **Pânico** termina todas as notas e a reprodução. Mudar de modo, perder foco ou esconder o separador também interrompe a sequência.
@@ -173,3 +173,12 @@ O modo **Compor** suporta agora várias pistas de notas por bloco, cada uma com 
 As ajudas opcionais incluem tonalidade, escala maior ou menor natural, destaque das notas da escala, restrição apenas para notas novas ou movidas e tríades diatónicas com pré-escuta. Notas existentes nunca são alteradas automaticamente.
 
 O projeto v2 guarda pistas, instrumentos, notas, bateria, blocos, ordem e andamento. Pode ser exportado/importado em JSON e migra composições v1. **Exportar composição WAV** renderiza offline a sequência completa em estéreo com instrumentos, volumes e efeitos, com limite de 12 minutos para proteger a memória. Instrumentos por amostras requerem Internet na primeira utilização e usam uma cache própria preservada entre versões da aplicação.
+
+
+## Correções de exportação e registo grave
+
+A composição e o WAV usam agora o mesmo encaminhamento dos instrumentos, volumes por pista e um único bus de efeitos/master. A exportação recebe uma cópia dos efeitos e master atuais no momento em que é iniciada. As notas de composição não são alteradas pelo sustain nem pelas alterações de timbre do teclado manual.
+
+Na renderização offline, eventos futuros não são contabilizados como vozes simultâneas: os limites de recursos do modo ao vivo não eliminam notas ou impactos ainda por renderizar. O WAV conserva todas as notas agendadas e acrescenta uma cauda calculada para release, delay e reverb. A polifonia ao vivo continua limitada; arranjos que a excedam podem diferir da exportação, que preserva os eventos completos. O projeto continua limitado a 12 minutos por exportação e a memória necessária cresce com a duração e densidade do arranjo.
+
+O piano roll permite Dó1–Si6, incluindo Mi1 e outras notas graves de baixo. Guardar/abrir e migrar projetos anteriores mantém as notas existentes.

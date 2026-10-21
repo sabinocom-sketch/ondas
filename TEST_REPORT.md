@@ -122,3 +122,16 @@ Passaram os três cenários adicionais em Chrome com viewport 820 × 1180 e toqu
 - Executados agora: `npm test -- --run` — **56 testes em 10 ficheiros, todos passaram**; `npm run build` — TypeScript e Vite passaram, 63 módulos, JS 327,95 kB (102,06 kB gzip).
 - Playwright em Chrome desktop confirmou WAV RIFF estéreo com sinal PCM não silencioso. A validação móvel emulada desta atualização ficou bloqueada por timeout na ligação/arranque do Chrome antes de carregar a página. Não foi realizado teste num Android físico nem avaliação auditiva humana.
 - Os resultados históricos acima não são apresentados como repetidos nesta atualização.
+
+
+## Correção: exportação completa e notas graves — 21/10/2026
+
+- A renderização offline deixou de eliminar eventos futuros ao atingir 16 notas/caudas ou 32 impactos. O agendamento preserva todas as notas, percorre os blocos por ordem e aplica o corte do chimbal no tempo musical, sem desligar antecipadamente o áudio anterior.
+- Novo `SequenceAudio` partilhado pela reprodução e exportação para instrumentos, volumes e duração. Um único `Effects` aplica os efeitos e master atuais à soma das pistas e bateria. A exportação copia esses parâmetros no arranque e acrescenta uma cauda calculada para release, ecos e reverb.
+- Vozes sintetizadas da composição separadas das vozes manuais; sustain e alterações de timbre no teclado não reescrevem notas das pistas. Pânico continua a limpar ambas.
+- Piano roll alargado para Dó1–Si6, com grelha e seletor dinâmicos. Notas graves sobrevivem a guardar/abrir; projetos v1 continuam a migrar.
+- Executados nesta correção: `npm test` — **63 testes em 11 ficheiros, todos passaram**. Os sete novos cenários cobrem notas/impactos completos antes de renderizar, encaminhamento e volumes partilhados, master, limpeza em falha de carregamento, chimbal, independência manual/composição, ordem/mute/solo e persistência grave/migração.
+- `npm run build` passou: 64 módulos; JS 328,37 kB (102,20 kB gzip). HTML autónomo regenerado com a mesma build.
+- Verificação adicional de PCM em Node, com `web-audio-engine` instalado apenas num diretório temporário de teste (sem nova dependência do projeto): WAVs com 24 notas por amostras, 48 sintetizadas e 40 impactos produziram sinal no início, meio e fim. Master 0 produziu pico PCM16 igual a 0. Usou-se uma amostra sinusoidal de teste em vez de descarregar instrumentos. Adaptou-se apenas o setter de limpeza `buffer=null`, não suportado por esse motor antigo; este ensaio não equivale ao Web Audio nativo do Chrome.
+- Não foi repetida a suite de navegador nesta correção; não houve teste em Android físico nem avaliação auditiva humana. Os resultados de Chrome da atualização anterior são históricos.
+- Limite explícito: a exportação preserva todos os eventos; a reprodução ao vivo mantém limites de polifonia. Não se promete igualdade amostra a amostra em arranjos que excedam esses limites, nem entre fases de efeitos iniciados em instantes distintos.
