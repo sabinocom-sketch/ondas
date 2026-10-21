@@ -4,6 +4,8 @@ Sintetizador polifónico para usar diretamente no navegador de telemóveis, tabl
 
 Inclui também instrumentos reais leves carregados apenas quando selecionados: piano de cauda, guitarra acústica e guitarra elétrica. As amostras ficam na cache do navegador após a primeira utilização. A coleção deriva de `nbrosowsky/tonejs-instruments`; código MIT e amostras CC BY 3.0. A reprodução por amostras requer Internet na primeira utilização de cada instrumento.
 
+As duas guitarras abrem uma interface própria com corpo ilustrado, braço de 13 casas e seis cordas animadas. O utilizador escolhe Palheta, Dedilhado ou Rasgueado; clicar numa casa seleciona e toca imediatamente a nota com o picking ativo. As teclas 1–6 repetem as cordas já escolhidas e as setas para cima/baixo palhetam o acorde selecionado, sem exigir duas ações simultâneas. Estão incluídas as formas Em, G, C, D, Am, E e A.
+
 ## HTML autónomo
 
 Abrir o ficheiro Ondas.html diretamente no navegador, sem Node.js ou servidor. Inclui o código, estilos e ícone; não requer ligação à Internet. Clicar em Ativar áudio para começar. A instalação PWA aplica-se apenas à versão servida por HTTPS. A persistência de presets em ficheiros locais depende do navegador.
