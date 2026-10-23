@@ -11,11 +11,16 @@ test('compositor v2: pistas, blocos, escala, persistência e ficheiro versionado
  await page.getByRole('button',{name:'Duplicar bloco',exact:true}).click();await page.getByLabel('Nome do bloco').fill('Refrão');
  await expect(page.locator('.song-block-list button')).toHaveCount(2);await expect(page.locator('.track-tabs button')).toHaveCount(2);
  await page.getByLabel('Tonalidade',{exact:true}).selectOption('2');await page.getByLabel('Escala',{exact:true}).selectOption('minor');await page.getByRole('checkbox',{name:'Restringir novas notas à escala'}).check();
- await page.getByLabel('Grau do acorde').selectOption('4');await page.getByRole('button',{name:'Inserir acorde'}).click();await expect(page.locator('[data-roll-note]')).toHaveCount(4);
+ await page.getByLabel('Grau do acorde').selectOption('4');await page.getByLabel('Início do acorde').fill('17');await page.getByLabel('Duração do acorde').fill('16');await page.getByRole('button',{name:'Inserir acorde'}).click();await expect(page.locator('[data-roll-note]')).toHaveCount(4);await expect(page.locator('[data-roll-note][aria-label*="passo 17"][aria-label*="duração 16"]')).toHaveCount(3);
  const download=page.waitForEvent('download');await page.getByRole('button',{name:'Guardar projeto'}).click();const saved=await download;expect(saved.suggestedFilename()).toBe('ondas-projeto-v2.json');const path=test.info().outputPath('projeto-v2.json');await saved.saveAs(path);const project=JSON.parse(readFileSync(path,'utf8'));expect(project.version).toBe(2);expect(project.blocks).toHaveLength(2);expect(project.order).toHaveLength(2);expect(project.blocks[1].tracks).toHaveLength(2);
  await page.reload({waitUntil:'domcontentloaded'});await page.getByRole('button',{name:'Compor',exact:true}).click();await expect(page.locator('.song-block-list button')).toHaveCount(2);await expect(page.getByLabel('Nome do bloco')).toHaveValue('Refrão');
  const before=await page.locator('[data-roll-note]').count();await page.getByLabel('Ficheiro de composição').setInputFiles({name:'inválido.json',mimeType:'application/json',buffer:Buffer.from('{"version":2}')});await expect(page.locator('.roll-status')).toContainText('projeto atual foi preservado');await expect(page.locator('[data-roll-note]')).toHaveCount(before);
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);await page.screenshot({path:test.info().outputPath('compositor-v2.png'),fullPage:true});
+});
+
+test('piano roll apaga diretamente uma nota com clique direito',async({page})=>{
+ await page.getByRole('button',{name:'Adicionar nota',exact:true}).click();await expect(page.locator('[data-roll-note]')).toHaveCount(1);
+ await page.locator('[data-roll-note]').click({button:'right'});await expect(page.locator('[data-roll-note]')).toHaveCount(0);await expect(page.locator('.roll-status')).toContainText('Nota apagada');
 });
 
 test('exporta a sequência completa para WAV estéreo com sinal',async({page})=>{
