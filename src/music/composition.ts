@@ -1,5 +1,8 @@
 import {emptyDrums,validDrums,type DrumPattern,type DrumId} from './drum-pattern';
-export const STEPS=64,LOW=24,HIGH=95;
+export const STEPS=64,LOW=24,HIGH=95,STEPS_PER_BEAT=4,BEATS_PER_BAR=4,STEPS_PER_BAR=STEPS_PER_BEAT*BEATS_PER_BAR;
+export const CHORD_DURATIONS=[{steps:2,label:'½ tempo'},{steps:4,label:'1 tempo'},{steps:8,label:'2 tempos'},{steps:16,label:'4 tempos'},{steps:32,label:'8 tempos'},{steps:64,label:'16 tempos'}] as const;
+export function chordPosition(step:number){const safe=Math.max(0,Math.min(STEPS-1,Math.round(step)));return{bar:Math.floor(safe/STEPS_PER_BAR)+1,beatStep:safe%STEPS_PER_BAR,beat:Math.floor(safe%STEPS_PER_BAR/STEPS_PER_BEAT)+1,subdivision:safe%STEPS_PER_BEAT}}
+export function nextChordStart(start:number,length:number){return Math.min(STEPS-1,Math.max(0,Math.round(start))+Math.max(1,Math.round(length)))}
 export interface RollNote{id:string;note:number;start:number;length:number}
 export interface Composition{version:1;bpm:number;loop:boolean;notes:RollNote[];drums?:DrumPattern}
 export const emptyComposition=():Composition=>({version:1,bpm:110,loop:true,notes:[],drums:emptyDrums()});

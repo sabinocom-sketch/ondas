@@ -129,11 +129,11 @@ O botão **Piano em ecrã inteiro**, junto às setas do teclado, mostra apenas o
 
 - **Compor** abre uma grelha de quatro compassos em 4/4: 64 passos de semicolcheia e notas de Dó1 a Si6. Cada pista usa o seu instrumento independente.
 - Tocar numa célula cria uma nota. Selecionar uma nota permite alterar altura, início e duração nos controlos. Arrastar move; a extremidade direita altera a duração. No telemóvel, arrastar uma área vazia desloca a grelha.
-- **Nova nota** prepara o próximo início; **Adicionar nota** insere a nota definida pelos controlos. Notas no mesmo passo formam acordes. **Apagar nota**, Delete/Backspace e **Desfazer** permitem corrigir.
+- **Nova nota** prepara o próximo início; **Adicionar nota** insere a nota definida pelos controlos. Notas no mesmo passo formam acordes. **Apagar nota**, clique direito sobre a nota, Delete/Backspace e **Desfazer** permitem corrigir.
 - Andamento entre 40 e 240 BPM; opção de repetição. A edição fica bloqueada durante a reprodução. **Parar composição** termina apenas as vozes da sequência; **Pânico** termina todas as notas e a reprodução. Mudar de modo, perder foco ou esconder o separador também interrompe a sequência.
 - A composição é guardada automaticamente neste navegador quando o armazenamento está disponível. **Guardar ficheiro** e **Abrir composição** permitem transportar a composição em JSON. Importações inválidas são rejeitadas. Há um limite de 256 notas e 30 alterações para desfazer; a polifonia de 16 vozes é partilhada com o teclado.
 - Para gravar a composição, premir **Gravar**, iniciar a reprodução, parar a composição e depois parar a gravação. Os efeitos do preset e o volume master são incluídos no WAV.
-- O transporte acompanha o relógio de áudio com uma verificação a cada 20 ms na thread da interface. Não é um sequenciador com precisão à amostra: uma interface bloqueada pode atrasar ou omitir notas curtas. O piano roll continua com uma única pista melódica, sem velocidades individuais ou exportação MIDI.
+- O transporte acompanha o relógio de áudio com uma verificação a cada 20 ms na thread da interface. Não é um sequenciador com precisão à amostra: uma interface bloqueada pode atrasar ou omitir notas curtas. O piano roll não tem velocidades individuais nem exportação MIDI.
 
 ## Bateria e percussão
 
@@ -171,6 +171,14 @@ No painel **Exportação WAV**, escolher a mistura completa ou uma pista individ
 O modo **Compor** suporta agora várias pistas de notas por bloco, cada uma com nome, instrumento, volume, mute e solo. Os blocos têm quatro compassos, podem ser nomeados, duplicados de forma independente e ordenados numa sequência. O transporte agenda antecipadamente notas e bateria no relógio do `AudioContext`; parar a sequência preserva notas tocadas manualmente.
 
 As ajudas opcionais incluem tonalidade, escala maior ou menor natural, destaque das notas da escala, restrição apenas para notas novas ou movidas e tríades diatónicas com pré-escuta. Notas existentes nunca são alteradas automaticamente.
+
+### Inserção rápida de acordes
+
+O painel **Inserir acorde** reúne todos os parâmetros da operação. **Grau / acorde** apresenta o grau diatónico e o nome calculado na tonalidade e escala atuais, por exemplo `I — Lá menor`. **Compasso** e **Tempo** definem o início dentro do bloco selecionado; o tempo aceita também as subdivisões `¼`, `½` e `¾`, que usam diretamente os passos de semicolcheia do piano roll.
+
+**Duração** oferece ½, 1, 2, 4, 8 ou 16 tempos. Só ficam disponíveis as durações que cabem até ao fim do bloco atual, mas um acorde pode atravessar livremente os limites entre compassos. **Pré-escutar acorde** toca a tríade selecionada sem criar notas. **Inserir acorde** cria simultaneamente as três notas na pista e bloco atuais e avança o início para o fim do acorde inserido. O início pode ser alterado manualmente a qualquer momento, permitindo tanto construir progressões rapidamente como inserir acordes em posições isoladas.
+
+Estes controlos são apenas uma representação musical do modelo existente: quatro passos por tempo, 16 passos por compasso e 64 passos por bloco. O formato v2 do projeto não mudou; reprodução, edição manual, migração de projetos e exportação WAV continuam a usar as mesmas notas com `start` e `length`.
 
 O projeto v2 guarda pistas, instrumentos, notas, bateria, blocos, ordem e andamento. Pode ser exportado/importado em JSON e migra composições v1. **Exportar composição WAV** renderiza offline a sequência completa em estéreo com instrumentos, volumes e efeitos, com limite de 12 minutos para proteger a memória. Instrumentos por amostras requerem Internet na primeira utilização e usam uma cache própria preservada entre versões da aplicação.
 
