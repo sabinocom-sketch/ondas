@@ -47,7 +47,27 @@ export function Multitrack({incoming,onImported,onOpenSource}:{incoming?:Arrange
  };
  const change=(id:string,edit:Partial<AudioTrack>)=>replace(current.current.map(t=>t.id===id?{...t,...edit}:t));
  const seek=(event:ReactPointerEvent<HTMLElement>)=>{if(mode!=='idle')return;const box=event.currentTarget.getBoundingClientRect();setSeconds(Math.max(0,Math.min(viewSeconds,(event.clientX-box.left)/box.width*viewSeconds)))};
- const dragClip=(event:ReactPointerEvent<HTMLButtonElement>,track:AudioTrack)=>{if(locked)return;event.preventDefault();event.stopPropagation();const clip=event.currentTarget,lane=clip.parentElement!,box=lane.getBoundingClientRect(),startX=event.clientX,startOffset=track.offset;let overRoll=false;clip.setPointerCapture(event.pointerId);const move=(e:PointerEvent)=>{if(e.clientY<70)window.scrollBy(0,-24);else if(e.clientY>innerHeight-70)window.scrollBy(0,24);const roll=document.querySelector<HTMLElement>('[data-composer]'),target=roll?.getBoundingClientRect();overRoll=Boolean(track.source&&target&&target.width&&target.height&&e.clientX>=target.left&&e.clientX<=target.right&&e.clientY>=target.top&&e.clientY<=target.bottom);roll?.classList.toggle('clip-drop-target',overRoll);if(overRoll)return;let value=Math.max(0,Math.min(viewSeconds-track.buffer.duration,startOffset+(e.clientX-startX)/box.width*viewSeconds));if(snap)value=Math.round(value*4)/4;change(track.id,{offset:value})};const end=()=>{document.querySelector('[data-composer]')?.classList.remove('clip-drop-target');window.removeEventListener('pointermove',move);window.removeEventListener('pointerup',end);if(overRoll&&track.source)onOpenSource?.(track.source)};window.addEventListener('pointermove',move);window.addEventListener('pointerup',end)};
+ const dragClip=(event:ReactPointerEvent<HTMLButtonElement>,track:AudioTrack)=>{
+  if(locked)return;event.preventDefault();event.stopPropagation();
+  const clip=event.currentTarget,lane=clip.parentElement!,box=lane.getBoundingClientRect(),startX=event.clientX,startOffset=track.offset,pointerId=event.pointerId;
+  const ghost=document.createElement('div');ghost.className='audio-clip-drag-ghost';ghost.textContent=track.source?`${track.name} · largar no piano roll`:track.name;document.body.appendChild(ghost);
+  let overRoll=false,finished=false;
+  const positionGhost=(e:PointerEvent)=>{ghost.style.transform=`translate3d(${e.clientX+14}px,${e.clientY+14}px,0)`};
+  positionGhost(event.nativeEvent);clip.classList.add('dragging');document.body.classList.add('dragging-arranger-clip');clip.setPointerCapture(pointerId);
+  const move=(e:PointerEvent)=>{
+   positionGhost(e);if(e.clientY<70)window.scrollBy(0,-24);else if(e.clientY>innerHeight-70)window.scrollBy(0,24);
+   const roll=document.querySelector<HTMLElement>('[data-composer]:not([hidden])'),target=roll?.getBoundingClientRect();
+   overRoll=Boolean(track.source&&target&&target.width&&target.height&&e.clientX>=target.left&&e.clientX<=target.right&&e.clientY>=target.top&&e.clientY<=target.bottom);
+   roll?.classList.toggle('clip-drop-target',overRoll);ghost.classList.toggle('over-roll',overRoll);if(overRoll)return;
+   let value=Math.max(0,Math.min(viewSeconds-track.buffer.duration,startOffset+(e.clientX-startX)/box.width*viewSeconds));if(snap)value=Math.round(value*4)/4;change(track.id,{offset:value});
+  };
+  const end=()=>{
+   if(finished)return;finished=true;document.querySelector('[data-composer]')?.classList.remove('clip-drop-target');clip.classList.remove('dragging');document.body.classList.remove('dragging-arranger-clip');ghost.remove();
+   window.removeEventListener('pointermove',move,true);window.removeEventListener('pointerup',end,true);window.removeEventListener('pointercancel',end,true);if(clip.hasPointerCapture(pointerId))clip.releasePointerCapture(pointerId);
+   if(overRoll&&track.source)onOpenSource?.(track.source);
+  };
+  window.addEventListener('pointermove',move,true);window.addEventListener('pointerup',end,true);window.addEventListener('pointercancel',end,true);
+ };
  const importFile=async(file:File)=>{
   setBusy(true);setMessage('');
   try{if(file.size>25*1024*1024)throw new Error('Escolhe um ficheiro até 25 MB.');await engine.start();const buffer=await engine.context!.decodeAudioData(await file.arrayBuffer());if(buffer.duration>120)throw new Error('Cada pista pode ter até 2 minutos.');if(alive.current)add(buffer,bufferWav(buffer),file.name.replace(/\.[^.]+$/,'').slice(0,50))}catch(e){if(alive.current)setMessage('Não foi possível importar: '+String(e))}finally{if(alive.current)setBusy(false)}
