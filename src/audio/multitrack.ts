@@ -1,6 +1,7 @@
 import {safetyCurve} from './effects';
 import {encodeWav} from './recorder';
 export type AudioTrack={id:string;name:string;buffer:AudioBuffer;blob:Blob;url:string;volume:number;pan?:number;muted:boolean;solo:boolean;offset:number};
+export type ArrangerClipImport={id:string;name:string;buffer:AudioBuffer;blob:Blob};
 export function trackGain(track:Pick<AudioTrack,'volume'|'muted'|'solo'>,tracks:Pick<AudioTrack,'solo'>[]){return track.muted||(tracks.some(t=>t.solo)&&!track.solo)?0:track.volume}
 export function trackEnd(tracks:Pick<AudioTrack,'offset'|'buffer'>[]){return Math.max(0,...tracks.map(t=>t.offset+t.buffer.duration))}
 export function bufferWav(buffer:AudioBuffer){

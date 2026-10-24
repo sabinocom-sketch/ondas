@@ -23,6 +23,13 @@ test('piano roll apaga diretamente uma nota com clique direito',async({page})=>{
  await page.locator('[data-roll-note]').click({button:'right'});await expect(page.locator('[data-roll-note]')).toHaveCount(0);await expect(page.locator('.roll-status')).toContainText('Nota apagada');
 });
 
+test('limpa todas as notas de todas as pistas e blocos, preservando a bateria',async({page})=>{
+ await page.getByRole('button',{name:'Adicionar nota',exact:true}).click();await page.getByRole('button',{name:'+ Pista',exact:true}).click();await page.getByRole('button',{name:'Adicionar nota',exact:true}).click();await page.getByRole('button',{name:'Duplicar bloco',exact:true}).click();
+ await page.locator('.drum-step').first().click();await expect(page.locator('[data-roll-note]')).toHaveCount(1);await page.getByRole('button',{name:'Limpar todas as notas'}).click();await expect(page.locator('[data-roll-note]')).toHaveCount(0);await expect(page.locator('.drum-step[aria-pressed=true]')).toHaveCount(1);
+ await page.locator('.song-block-list button').first().click();for(const tab of await page.locator('.track-tabs button').all()){await tab.click();await expect(page.locator('[data-roll-note]')).toHaveCount(0)}
+ await expect(page.locator('.roll-status')).toContainText('Todas as notas foram apagadas');
+});
+
 test('acordes usam durações musicais, podem atravessar compassos e avançam o início',async({page})=>{
  await page.getByLabel('Compasso do acorde').selectOption('1');await page.getByLabel('Tempo do acorde').selectOption('8');await page.getByLabel('Duração do acorde').selectOption('2');await page.getByRole('button',{name:'Inserir acorde'}).click();
  await expect(page.locator('[data-roll-note][aria-label*="passo 9"][aria-label*="duração 2"]')).toHaveCount(3);await expect(page.getByLabel('Tempo do acorde')).toHaveValue('10');
@@ -34,4 +41,11 @@ test('acordes usam durações musicais, podem atravessar compassos e avançam o 
 test('exporta a sequência completa para WAV estéreo com sinal',async({page})=>{
  test.setTimeout(180000);await page.getByRole('button',{name:'Adicionar nota',exact:true}).click();await page.getByLabel('Duração da nota').fill('8');
  const download=page.waitForEvent('download');await page.getByRole('button',{name:'Exportar composição WAV'}).click();const file=await download;expect(file.suggestedFilename()).toBe('ondas-composicao.wav');const path=test.info().outputPath('ondas-composicao.wav');await file.saveAs(path);const bytes=readFileSync(path),view=new DataView(bytes.buffer,bytes.byteOffset,bytes.byteLength);let peak=0;for(let i=44;i<bytes.byteLength;i+=2)peak=Math.max(peak,Math.abs(view.getInt16(i,true)));expect(bytes.subarray(0,4).toString()).toBe('RIFF');expect(view.getUint16(22,true)).toBe(2);expect(peak).toBeGreaterThan(10);
+});
+
+test('envia a composição diretamente para o arranjador multipistas',async({page})=>{
+ test.setTimeout(180000);await page.getByRole('button',{name:'Adicionar nota',exact:true}).click();const arranger=page.getByRole('region',{name:'Estúdio multipistas'});await page.getByRole('button',{name:'Enviar ao arranjador'}).click();
+ await expect(arranger.locator('.audio-track')).toHaveCount(1,{timeout:60000});await expect(arranger.getByLabel('Nome da pista 1')).toHaveValue('Composição · 1 bloco');await expect(arranger.getByText('Composição adicionada como pista. Já podes alinhá-la e misturá-la.')).toBeVisible();
+ const url=await arranger.getByRole('link',{name:'WAV da pista'}).getAttribute('href');expect(await page.evaluate(async value=>{const view=new DataView(await(await fetch(value!)).arrayBuffer());let peak=0;for(let i=44;i<view.byteLength;i+=2)peak=Math.max(peak,Math.abs(view.getInt16(i,true)));return peak},url)).toBeGreaterThan(10);
+ await expect(arranger.getByText('1 pista · guardado',{exact:true})).toBeVisible({timeout:30000});await page.reload({waitUntil:'domcontentloaded'});const restored=page.getByRole('region',{name:'Estúdio multipistas'});await expect(restored.locator('.audio-track')).toHaveCount(1,{timeout:30000});await expect(restored.getByLabel('Nome da pista 1')).toHaveValue('Composição · 1 bloco');
 });

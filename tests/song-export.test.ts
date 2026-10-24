@@ -44,6 +44,7 @@ describe('Exportação de composições completas',()=>{
   const a=audioContext(),patch=clonePatch(defaults),p=emptySong(),update=vi.spyOn(Effects.prototype,'update');patch.master=0;patch.delay.enabled=true;patch.delay.mix=.4;p.blocks[0].tracks[0].notes=[{id:'x',note:60,start:0,length:4}];
   vi.stubGlobal('OfflineAudioContext',vi.fn(function(){return a.ctx}));await renderSongWav(p,patch);
   expect(update).toHaveBeenCalledExactlyOnceWith(patch,true);
+  await renderSongWav(p,patch,{master:1});expect(update).toHaveBeenLastCalledWith(expect.objectContaining({master:1}),true);
   const failed=audioContext();vi.stubGlobal('OfflineAudioContext',vi.fn(function(){return failed.ctx}));vi.stubGlobal('fetch',vi.fn(async()=>({ok:false})));
   p.blocks[0].tracks[0].instrument='grand-piano';await expect(renderSongWav(p)).rejects.toThrow('descarregar');
   expect(failed.ctx.startRendering).not.toHaveBeenCalled();expect(failed.nodes.every(n=>n.disconnect.mock.calls.length>0)).toBe(true);

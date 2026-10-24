@@ -9,9 +9,9 @@ import {validSong,type SongProject} from '../music/song';
 
 /** Render the ordered arrangement through the same shared effects/master bus
  * as live playback. Future events queued offline are not live voice slots. */
-export async function renderSongWav(project:SongProject,settings:Patch=defaults):Promise<Blob>{
+export async function renderSongWav(project:SongProject,settings:Patch=defaults,options:{master?:number}={}):Promise<Blob>{
  if(!validSong(project))throw new Error('Projeto de composição inválido.');
- const patch=clonePatch(settings),stepSeconds=60/project.bpm/4,bodySeconds=project.order.length*STEPS*stepSeconds;
+ const patch=clonePatch(settings),stepSeconds=60/project.bpm/4,bodySeconds=project.order.length*STEPS*stepSeconds;if(options.master!==undefined)patch.master=options.master;
  if(bodySeconds>720)throw new Error('A sequência excede 12 minutos; divide-a em dois projetos para proteger a memória do dispositivo.');
  const blocks=project.order.map(id=>project.blocks.find(block=>block.id===id)!);
  const audible=blocks.flatMap(block=>{const solo=block.tracks.some(t=>t.solo);return block.tracks.filter(t=>!t.muted&&t.volume>0&&(!solo||t.solo)&&t.notes.length)});

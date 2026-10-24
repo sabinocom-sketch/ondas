@@ -1,7 +1,7 @@
 import {useEffect,useRef,useState,type CSSProperties,type PointerEvent as ReactPointerEvent} from 'react';
 import {engine} from '../audio/engine';
 import {WavRecorder} from '../audio/recorder';
-import {bufferWav,renderMix,TrackPlayback,trackEnd,type AudioTrack} from '../audio/multitrack';
+import {bufferWav,renderMix,TrackPlayback,trackEnd,type ArrangerClipImport,type AudioTrack} from '../audio/multitrack';
 import {loadMultitrackProject,storeMultitrackProject,validMultitrackProject} from '../audio/multitrack-project';
 const clock=(n:number)=>`${Math.floor(n/60).toString().padStart(2,'0')}:${Math.floor(n%60).toString().padStart(2,'0')}`;
 const precise=(n:number)=>`${clock(n)}.${Math.floor(n%1*10)}`;
@@ -10,11 +10,11 @@ function Waveform({buffer}:{buffer:AudioBuffer}){
  for(let b=0;b<bars;b++){let peak=.04;for(let i=b*step;i<Math.min(data.length,(b+1)*step);i+=Math.max(1,Math.floor(step/24)))peak=Math.max(peak,Math.abs(data[i]));peaks.push(peak)}
  return <svg className="clip-waveform" viewBox={`0 0 ${bars*3} 44`} preserveAspectRatio="none" aria-hidden="true">{peaks.map((peak,i)=><rect key={i} x={i*3} y={22-peak*19} width="1.6" height={Math.max(2,peak*38)} rx=".8"/>)}</svg>
 }
-export function Multitrack(){
+export function Multitrack({incoming,onImported}:{incoming?:ArrangerClipImport|null;onImported?:(id:string)=>void}={}){
  const [tracks,setTracks]=useState<AudioTrack[]>([]),[mode,setMode]=useState<'idle'|'record'|'play'>('idle'),[busy,setBusy]=useState(false),[seconds,setSeconds]=useState(0),[message,setMessage]=useState(''),[mix,setMix]=useState('');
  const [levels,setLevels]=useState<Record<string,number>>({}),[sampleRate,setSampleRate]=useState(44100),[normalize,setNormalize]=useState(false),[target,setTarget]=useState('mix'),[filename,setFilename]=useState('ondas-mistura'),[viewSeconds,setViewSeconds]=useState(60),[snap,setSnap]=useState(true),[hydrated,setHydrated]=useState(false),[saved,setSaved]=useState(false);
  const invalidate=()=>{if(mixUrl.current){URL.revokeObjectURL(mixUrl.current);mixUrl.current='';setMix('')}};
- const current=useRef<AudioTrack[]>([]),capture=useRef<WavRecorder|null>(null),playback=useRef<TrackPlayback|null>(null),epoch=useRef(0),alive=useRef(false),started=useRef(0),origin=useRef(0),playing=useRef(false),mixUrl=useRef('');
+ const current=useRef<AudioTrack[]>([]),capture=useRef<WavRecorder|null>(null),playback=useRef<TrackPlayback|null>(null),epoch=useRef(0),alive=useRef(false),started=useRef(0),origin=useRef(0),playing=useRef(false),mixUrl=useRef(''),handledImport=useRef('');
  const replace=(next:AudioTrack[])=>{current.current=next;setTracks(next);playback.current?.update(next);if(mixUrl.current){URL.revokeObjectURL(mixUrl.current);mixUrl.current='';setMix('')}};
  const add=(buffer:AudioBuffer,blob:Blob,name:string,offset=0)=>replace([...current.current,{id:crypto.randomUUID(),name,buffer,blob,url:URL.createObjectURL(blob),volume:1,pan:0,muted:false,solo:false,offset}]);
  const stop=async()=>{
@@ -36,6 +36,7 @@ export function Multitrack(){
  },[]);
  useEffect(()=>{let cancelled=false;(async()=>{try{const stored=await loadMultitrackProject();if(!validMultitrackProject(stored))return;const decoder=new OfflineAudioContext(1,1,44100),restored:AudioTrack[]=[];for(const item of stored.tracks)try{const buffer=await decoder.decodeAudioData(await item.audio.arrayBuffer());restored.push({...item,buffer,blob:item.audio,url:URL.createObjectURL(item.audio)})}catch{/* Mantém as restantes pistas quando um clip está danificado. */}if(!cancelled){current.current=restored;setTracks(restored);setViewSeconds(stored.viewSeconds);setSnap(stored.snap);setSaved(true);if(restored.length)setMessage(`Projeto restaurado com ${restored.length} ${restored.length===1?'pista':'pistas'}.`)}}catch{if(!cancelled)setMessage('Não foi possível restaurar o projeto multipistas deste navegador.')}finally{if(!cancelled)setHydrated(true)}})();return()=>{cancelled=true}},[]);
  useEffect(()=>{if(!hydrated)return;setSaved(false);const timer=window.setTimeout(()=>{void storeMultitrackProject({version:1,tracks:tracks.map(({buffer,url,blob,...track})=>({...track,pan:track.pan??0,audio:blob})),viewSeconds,snap,updatedAt:Date.now()}).then(()=>{if(alive.current)setSaved(true)}).catch(()=>{if(alive.current){setSaved(false);setMessage('O navegador ficou sem espaço para guardar o projeto. Exporta os WAV para não perderes as pistas.')}})},350);return()=>window.clearTimeout(timer)},[tracks,viewSeconds,snap,hydrated]);
+ useEffect(()=>{if(!incoming||!hydrated||busy||mode!=='idle'||handledImport.current===incoming.id)return;handledImport.current=incoming.id;add(incoming.buffer,incoming.blob,incoming.name);setSeconds(0);setMessage('Composição adicionada como pista. Já podes alinhá-la e misturá-la.');onImported?.(incoming.id)},[incoming,hydrated,busy,mode,onImported]);
  const start=async(record:boolean)=>{
   const ticket=++epoch.current;setBusy(true);setMessage('');
   try{await engine.start();if(ticket!==epoch.current||!alive.current||document.hidden)return;
@@ -56,7 +57,7 @@ export function Multitrack(){
  const locked=busy||mode!=='idle';
  return <section className="multitrack panel" aria-label="Estúdio multipistas">
   <div className="multitrack-heading"><div><span className="eyebrow">CONSTRÓI A TUA MÚSICA</span><h2>Arranjador multipistas</h2></div><span>{tracks.length} {tracks.length===1?'pista':'pistas'} · {hydrated?(saved?'guardado':'a guardar…'):'a restaurar…'}</span></div>
-  <p>Grava e organiza instrumentos numa linha temporal. Arrasta os clips, posiciona o cursor e mistura tudo no mesmo espaço.</p>
+  <p>Grava, importa ou recebe composições do piano roll numa linha temporal. Arrasta os clips, posiciona o cursor e mistura tudo no mesmo espaço.</p>
   <div className="arranger-transport"><div className="transport-buttons"><button aria-label="Nova pista" disabled={locked||!hydrated} onClick={()=>void start(true)}>● Gravar</button><button aria-label="Ouvir pistas" className={mode==='play'?'active':''} disabled={locked||!tracks.length} onClick={()=>void start(false)}>▶ Reproduzir</button><button aria-label="Parar pistas" disabled={mode==='idle'} onClick={()=>void stop()}>■ Parar</button><button disabled={locked} onClick={()=>setSeconds(0)}>↤ Início</button></div><output className={mode==='record'?'recording-clock':''} aria-label="Tempo multipistas">{precise(seconds)}{mode==='record'?' · REC':''}</output><div className="arranger-options"><label>Zoom <select aria-label="Escala da timeline" value={viewSeconds} disabled={locked} onChange={e=>setViewSeconds(Number(e.target.value))}><option value={30}>30 s</option><option value={60}>1 min</option><option value={120}>2 min</option></select></label><label className="snap-option"><input type="checkbox" checked={snap} onChange={e=>setSnap(e.target.checked)}/> Grelha ¼ s</label></div></div>
   <div className="arranger" style={{'--playhead':`${Math.min(100,seconds/viewSeconds*100)}%`} as CSSProperties}>
    <div className="arranger-ruler"><span className="ruler-corner">PISTAS</span><div className="ruler-time" onPointerDown={seek}>{Array.from({length:7},(_,i)=><span key={i} style={{left:`${i/6*100}%`}}>{clock(i/6*viewSeconds)}</span>)}</div></div>
