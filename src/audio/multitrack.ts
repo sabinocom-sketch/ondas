@@ -1,6 +1,7 @@
 import {safetyCurve} from './effects';
 import {encodeWav} from './recorder';
-export type ComposerSource={blockId:string;trackId:string};
+import type {SongProject} from '../music/song';
+export type ComposerSource={blockId:string;trackId:string;project?:SongProject};
 export type AudioTrack={id:string;name:string;buffer:AudioBuffer;blob:Blob;url:string;volume:number;pan?:number;muted:boolean;solo:boolean;offset:number;source?:ComposerSource};
 export type ArrangerClipImport={id:string;name:string;buffer:AudioBuffer;blob:Blob;source:ComposerSource};
 export function trackGain(track:Pick<AudioTrack,'volume'|'muted'|'solo'>,tracks:Pick<AudioTrack,'solo'>[]){return track.muted||(tracks.some(t=>t.solo)&&!track.solo)?0:track.volume}
