@@ -129,7 +129,8 @@ O botão **Piano em ecrã inteiro**, junto às setas do teclado, mostra apenas o
 
 - **Compor** abre uma grelha de quatro compassos em 4/4: 64 passos de semicolcheia e notas de Dó1 a Si6. Cada pista usa o seu instrumento independente.
 - Tocar numa célula cria uma nota. Selecionar uma nota permite alterar altura, início e duração nos controlos. Arrastar move; a extremidade direita altera a duração. No telemóvel, arrastar uma área vazia desloca a grelha.
-- **Nova nota** prepara o próximo início; **Adicionar nota** insere a nota definida pelos controlos. Notas no mesmo passo formam acordes. **Apagar nota**, clique direito sobre a nota, Delete/Backspace e **Desfazer** permitem corrigir.
+- **Nova nota** prepara o próximo início; **Adicionar nota** insere a nota definida pelos controlos. Notas no mesmo passo formam acordes. Um duplo clique esquerdo numa nota duplica-a; a original não é alterada e a cópia fica selecionada.
+- Arrastar sobre uma zona vazia desenha uma seleção retangular. Um duplo clique esquerdo dentro dessa área duplica todas as notas abrangidas, preservando alturas relativas, distâncias temporais e durações. Arrastar qualquer nota da cópia move o conjunto com snap de 1/16. Um clique direito simples não elimina nada; dois cliques direitos dentro da seleção eliminam apenas o conjunto selecionado. Delete/Backspace, os botões de edição e **Desfazer** atuam igualmente sobre a seleção ativa.
 - Andamento entre 40 e 240 BPM; opção de repetição. A edição fica bloqueada durante a reprodução. **Parar composição** termina apenas as vozes da sequência; **Pânico** termina todas as notas e a reprodução. Mudar de modo, perder foco ou esconder o separador também interrompe a sequência.
 - A composição é guardada automaticamente neste navegador quando o armazenamento está disponível. **Guardar ficheiro** e **Abrir composição** permitem transportar a composição em JSON. Importações inválidas são rejeitadas. Há um limite de 256 notas e 30 alterações para desfazer; a polifonia de 16 vozes é partilhada com o teclado.
 - **Limpar pista** remove apenas as notas da pista atual. **Limpar todas as notas** remove as notas de todas as pistas e blocos, preservando a bateria e as restantes definições do projeto.
@@ -152,6 +153,8 @@ Em **Compor**, usar **Bateria ↓** para chegar à grelha. São oito pistas sint
 ## Gravação multipistas
 
 O **Arranjador multipistas**, abaixo do gravador estéreo, aceita o número de pistas de áudio independentes que o dispositivo conseguir manter, com até dois minutos por pista. A régua temporal mostra formas de onda, permite posicionar o cursor e mover clips por arrasto com grelha opcional de ¼ de segundo.
+
+Os clips criados por **Enviar ao arranjador** conservam uma referência opcional à pista e ao bloco que estavam abertos no momento do envio. Arrastar um desses clips sobre o piano roll volta a abrir essa origem para edição, sem criar, mover ou alterar notas. O arrasto horizontal dentro da faixa continua a posicionar normalmente o clip. Referências antigas ou cuja origem tenha sido removida são ignoradas com uma mensagem, mantendo o áudio e o projeto intactos.
 
 1. Escolher o instrumento e premir **Gravar**. Tocar no piano ou iniciar a composição/bateria. Premir **Parar** quando terminar.
 2. Escolher outro instrumento e repetir. As pistas anteriores tocam desde o início enquanto a nova tomada é captada. O áudio dessas pistas não é regravado na nova tomada.

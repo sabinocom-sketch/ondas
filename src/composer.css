@@ -14,4 +14,6 @@
 .chord-help{flex:1 1 100%;margin:0;color:#9fb1a8;font-size:12px}
 .roll-lane.in-scale{box-shadow:inset 0 0 0 999px #b5efc609}
 .roll-lane.out-scale{box-shadow:inset 0 0 0 999px #090f0c36}
+.roll-selection{position:absolute;z-index:3;border:1px solid #d8ffe6;background:#82d5a52b;box-shadow:inset 0 0 0 1px #152d20;pointer-events:none}.roll-selection.drawing{border-style:dashed;background:#b5efc619}
+.piano-roll.clip-drop-target{outline:3px solid #b5efc6;outline-offset:4px;box-shadow:0 0 24px #70c89655}
 @media(max-width:740px){.song-blocks,.track-strip,.composition-help{padding:10px;gap:8px;align-items:stretch}.song-block-list,.track-tabs{flex-basis:100%;overflow-x:auto;flex-wrap:nowrap;padding-bottom:4px}.song-block-list button,.track-tabs button{white-space:nowrap}.song-actions{width:100%}.song-blocks>label,.track-strip>label,.composition-help>label,.chord-insert>label{flex:1 1 130px}.song-blocks input,.track-strip input[type=text]{width:100%;max-width:none}.track-strip>button{flex:1}.composition-help button{flex:1 1 145px}.chord-insert{align-items:stretch}.chord-insert select{max-width:none}.roll-heading{flex-wrap:wrap}}

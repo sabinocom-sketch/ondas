@@ -1,5 +1,5 @@
 export type StoredAudioTrack={
- id:string;name:string;audio:Blob;volume:number;pan:number;muted:boolean;solo:boolean;offset:number
+ id:string;name:string;audio:Blob;volume:number;pan:number;muted:boolean;solo:boolean;offset:number;source?:{blockId:string;trackId:string}
 };
 export type MultitrackProject={version:1;tracks:StoredAudioTrack[];viewSeconds:number;snap:boolean;updatedAt:number};
 
@@ -9,7 +9,7 @@ const database=()=>new Promise<IDBDatabase>((resolve,reject)=>{const open=indexe
 
 export function validStoredTrack(value:unknown):value is StoredAudioTrack{
  if(!value||typeof value!=='object')return false;const t=value as StoredAudioTrack;
- return typeof t.id==='string'&&typeof t.name==='string'&&t.audio instanceof Blob&&Number.isFinite(t.volume)&&t.volume>=0&&t.volume<=1.5&&Number.isFinite(t.pan)&&t.pan>=-1&&t.pan<=1&&typeof t.muted==='boolean'&&typeof t.solo==='boolean'&&Number.isFinite(t.offset)&&t.offset>=0&&t.offset<=120;
+ return typeof t.id==='string'&&typeof t.name==='string'&&t.audio instanceof Blob&&Number.isFinite(t.volume)&&t.volume>=0&&t.volume<=1.5&&Number.isFinite(t.pan)&&t.pan>=-1&&t.pan<=1&&typeof t.muted==='boolean'&&typeof t.solo==='boolean'&&Number.isFinite(t.offset)&&t.offset>=0&&t.offset<=120&&(t.source===undefined||Boolean(t.source&&typeof t.source.blockId==='string'&&typeof t.source.trackId==='string'));
 }
 export function validMultitrackProject(value:unknown):value is MultitrackProject{
  if(!value||typeof value!=='object')return false;const p=value as MultitrackProject;
