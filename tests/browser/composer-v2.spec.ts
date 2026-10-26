@@ -18,6 +18,13 @@ test('compositor v2: pistas, blocos, escala, persistência e ficheiro versionado
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);await page.screenshot({path:test.info().outputPath('compositor-v2.png'),fullPage:true});
 });
 
+test('scroll horizontal acrescenta compassos e guarda notas além do quarto',async({page})=>{
+ const roll=page.locator('.roll-scroll');await expect(page.locator('.roll-heading')).toContainText('4 compassos');
+ await roll.evaluate(node=>{node.scrollLeft=node.scrollWidth});await expect(page.locator('.roll-heading')).toContainText('8 compassos');
+ await page.getByLabel('Início da nota').fill('81');await page.getByRole('button',{name:'Adicionar nota',exact:true}).click();await expect(page.locator('[data-roll-note][aria-label*="passo 81"]')).toHaveCount(1);
+ await page.reload({waitUntil:'domcontentloaded'});await page.getByRole('button',{name:'Compor',exact:true}).click();await expect(page.locator('.roll-heading')).toContainText('8 compassos');await expect(page.locator('[data-roll-note][aria-label*="passo 81"]')).toHaveCount(1);
+});
+
 test('piano roll duplica uma nota com duplo clique e só a apaga com duplo clique direito',async({page})=>{
  await page.getByRole('button',{name:'Adicionar nota',exact:true}).click();await expect(page.locator('[data-roll-note]')).toHaveCount(1);
  await page.locator('[data-roll-note]').dblclick();await expect(page.locator('[data-roll-note]')).toHaveCount(2);await expect(page.locator('[data-roll-note][aria-pressed=true]')).toHaveCount(1);await expect(page.locator('[data-roll-note][aria-label^="Dó4, passo 1"]')).toHaveCount(1);

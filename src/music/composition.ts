@@ -1,8 +1,8 @@
 import {emptyDrums,validDrums,type DrumPattern,type DrumId} from './drum-pattern';
 export const STEPS=64,LOW=24,HIGH=95,STEPS_PER_BEAT=4,BEATS_PER_BAR=4,STEPS_PER_BAR=STEPS_PER_BEAT*BEATS_PER_BAR;
 export const CHORD_DURATIONS=[{steps:2,label:'½ tempo'},{steps:4,label:'1 tempo'},{steps:8,label:'2 tempos'},{steps:16,label:'4 tempos'},{steps:32,label:'8 tempos'},{steps:64,label:'16 tempos'}] as const;
-export function chordPosition(step:number){const safe=Math.max(0,Math.min(STEPS-1,Math.round(step)));return{bar:Math.floor(safe/STEPS_PER_BAR)+1,beatStep:safe%STEPS_PER_BAR,beat:Math.floor(safe%STEPS_PER_BAR/STEPS_PER_BEAT)+1,subdivision:safe%STEPS_PER_BEAT}}
-export function nextChordStart(start:number,length:number){return Math.min(STEPS-1,Math.max(0,Math.round(start))+Math.max(1,Math.round(length)))}
+export function chordPosition(step:number,total=STEPS){const safe=Math.max(0,Math.min(total-1,Math.round(step)));return{bar:Math.floor(safe/STEPS_PER_BAR)+1,beatStep:safe%STEPS_PER_BAR,beat:Math.floor(safe%STEPS_PER_BAR/STEPS_PER_BEAT)+1,subdivision:safe%STEPS_PER_BEAT}}
+export function nextChordStart(start:number,length:number,total=STEPS){return Math.min(total-1,Math.max(0,Math.round(start))+Math.max(1,Math.round(length)))}
 export interface RollNote{id:string;note:number;start:number;length:number}
 export interface Composition{version:1;bpm:number;loop:boolean;notes:RollNote[];drums?:DrumPattern}
 export const emptyComposition=():Composition=>({version:1,bpm:110,loop:true,notes:[],drums:emptyDrums()});
@@ -10,7 +10,7 @@ export function validComposition(x:unknown):x is Composition{
  if(!x||typeof x!=='object')return false;const p=x as Composition;
  return (p.drums===undefined||validDrums(p.drums))&&p.version===1&&Number.isInteger(p.bpm)&&p.bpm>=40&&p.bpm<=240&&typeof p.loop==='boolean'&&Array.isArray(p.notes)&&p.notes.length<=256&&new Set(p.notes.map(n=>n?.id)).size===p.notes.length&&p.notes.every(n=>n&&typeof n.id==='string'&&n.id.length>0&&n.id.length<=80&&Number.isInteger(n.note)&&n.note>=LOW&&n.note<=HIGH&&Number.isInteger(n.start)&&n.start>=0&&n.start<STEPS&&Number.isInteger(n.length)&&n.length>=1&&n.start+n.length<=STEPS);
 }
-export function fitNote(n:RollNote):RollNote{return{...n,note:Math.max(LOW,Math.min(HIGH,Math.round(n.note))),start:Math.max(0,Math.min(STEPS-1,Math.round(n.start))),length:Math.max(1,Math.min(STEPS-Math.max(0,Math.min(STEPS-1,Math.round(n.start))),Math.round(n.length)))}}
+export function fitNote(n:RollNote,total=STEPS):RollNote{return{...n,note:Math.max(LOW,Math.min(HIGH,Math.round(n.note))),start:Math.max(0,Math.min(total-1,Math.round(n.start))),length:Math.max(1,Math.min(total-Math.max(0,Math.min(total-1,Math.round(n.start))),Math.round(n.length)))}}
 export function notesAt(p:Composition,elapsed:number){const position=Math.max(0,elapsed)/(60/p.bpm/4),cycle=Math.floor(position/STEPS);if(!p.loop&&cycle>0)return{step:STEPS,cycle,notes:[]};const step=position%STEPS;return{step,cycle,notes:p.notes.filter(n=>step>=n.start&&step<n.start+n.length)}}
 const KEY='ondas.composition.v1';
 export function loadComposition(storage:Storage=localStorage):Composition{try{const p=JSON.parse(storage.getItem(KEY)||'null');return validComposition(p)?p:emptyComposition()}catch{return emptyComposition()}}
