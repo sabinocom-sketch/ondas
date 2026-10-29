@@ -22,7 +22,8 @@ test('áudio real: sinal, frequência, ADSR, acordes, efeitos e presets',async({
  await test.info().attach('audio-measurements.json',{body:JSON.stringify(results,null,2),contentType:'application/json'});expect(results.frequency).toBeGreaterThan(430);expect(results.frequency).toBeLessThan(450);expect(results.sustain).toBeGreaterThan(results.early);expect(results.tail).toBeLessThan(.00001);expect(results.cleaned).toBe(0);expect(results.chord).toBeGreaterThan(.001);expect(results.sixteenPeak).toBeLessThan(1);expect(results.presets.every(p=>p.rms>.00001)).toBe(true);expect(new Set(results.presets.map(p=>p.rms.toFixed(6))).size).toBe(results.presets.length);expect(results.effects.every(e=>e.difference>.000001)).toBe(true);
 });
 
-test('três contactos de toque nativos mantêm captura e independência',async({page})=>{
+test('três contactos de toque nativos mantêm captura e independência',async({page},testInfo)=>{
+ test.skip(testInfo.project.name==='desktop','O perfil desktop não ativa a emulação tátil nativa do Chromium.');
  const client=await page.context().newCDPSession(page);
  const points=[];for(const [i,n] of [36,40,43].entries()){const box=await page.locator('[data-note="'+n+'"]').boundingBox();if(!box)throw new Error('Tecla invisível');points.push({x:box.x+box.width/2,y:box.y+box.height-28,id:i+1})}
  await client.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:points});
@@ -39,6 +40,41 @@ test('dezasseis vozes reais, parâmetros em reprodução e limpeza',async({page}
  const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));
  const result=await page.evaluate(async()=>{const {engine}=((window as any).__ondasTest ?? await import('/src/audio/engine.ts'));const {clonePatch}=((window as any).__ondasTest ?? await import('/src/audio/parameters.ts'));for(let i=0;i<16;i++)engine.noteOn('test'+i,48+i);const count=engine.manager.voices.size;const p=clonePatch(engine.patch);p.filter.cutoff=700;p.osc[0].detune=20;engine.setPatch(p);engine.noteOff('test9');engine.noteOn('extra',80);const reused=!engine.manager.voices.has('test9')&&engine.manager.voices.has('test0');const cutoff=engine.manager.voices.get('test0').patch.filter.cutoff;const latency=engine.context.baseLatency;engine.panic();return{count,reused,cutoff,latency,remaining:engine.manager.voices.size}});
  expect(result.count).toBe(16);expect(result.reused).toBe(true);expect(result.cutoff).toBe(700);expect(result.remaining).toBe(0);expect(errors).toEqual([]);await test.info().attach('context-metrics.json',{body:JSON.stringify(result,null,2),contentType:'application/json'});
+});
+
+test('auditoria de polifonia e dinâmica em 8, 16 e 32 vozes',async({page})=>{
+ const results=await page.evaluate(async()=>{
+  const api=((window as any).__ondasTest ?? {...await import('/src/audio/voice-manager.ts'),...await import('/src/audio/effects.ts'),...await import('/src/audio/parameters.ts')});
+  const render=async(voices:number,compressor:boolean)=>{
+   const rate=48000,ctx=new OfflineAudioContext(2,rate,rate),patch=api.clonePatch(api.defaults);
+   patch.chorus.enabled=false;patch.delay.enabled=false;patch.reverb.enabled=false;patch.compressor.enabled=compressor;patch.compressor.threshold=-24;patch.compressor.ratio=4;patch.master=1;
+   const effects=new api.Effects(ctx);effects.update(patch,true);
+   const manager=new api.VoiceManager(ctx,effects.input,Infinity);
+   const notes=Array.from({length:voices},(_,i)=>36+i);
+   notes.forEach((note,i)=>manager.noteOn('audit:'+i,note,patch));
+   const release=ctx.suspend(.35),started=performance.now(),rendering=ctx.startRendering();
+   await release;notes.forEach((_,i)=>manager.noteOff('audit:'+i));await ctx.resume();
+   const buffer=await rendering,renderMs=performance.now()-started,data=buffer.getChannelData(0);
+   let energy=0,peak=0,limitedSamples=0,nonFinite=0;
+   for(const sample of data){if(!Number.isFinite(sample)){nonFinite++;continue}const absolute=Math.abs(sample);energy+=sample*sample;peak=Math.max(peak,absolute);if(absolute>=.999)limitedSamples++}
+   const reduction=effects.compressor.reduction;
+   manager.panic();effects.dispose();
+   return{voices,compressor,renderMs,peak,rms:Math.sqrt(energy/data.length),limitedSamples,nonFinite,remaining:manager.voices.size,retiring:manager.retiring.size,reduction};
+  };
+  const rows=[];for(const voices of [8,16,32]){rows.push(await render(voices,false));rows.push(await render(voices,true))}
+  const comparisons=[8,16,32].map(voices=>{const dry=rows.find(row=>row.voices===voices&&!row.compressor)!,wet=rows.find(row=>row.voices===voices&&row.compressor)!;return{voices,peakDeltaDb:20*Math.log10(wet.peak/dry.peak),rmsDeltaDb:20*Math.log10(wet.rms/dry.rms)}});
+  return{baseLatency:((window as any).__ondasTest?.engine?.context?.baseLatency??null),rows,comparisons};
+ });
+ mkdirSync('artifacts',{recursive:true});writeFileSync('artifacts/stage-i-'+test.info().project.name+'.json',JSON.stringify(results,null,2));
+ await test.info().attach('stage-i-performance.json',{body:JSON.stringify(results,null,2),contentType:'application/json'});
+ expect(results.rows.every(row=>row.nonFinite===0)).toBe(true);
+ expect(results.rows.every(row=>row.peak<1&&row.limitedSamples===0)).toBe(true);
+ expect(results.rows.every(row=>row.remaining===0&&row.retiring===0)).toBe(true);
+ expect(results.rows.filter(row=>row.compressor).every(row=>row.reduction<=0)).toBe(true);
+ // DynamicsCompressorNode applies its own transfer curve and can raise these
+ // conservative input levels. The safety invariant is absence of clipping;
+ // the level delta remains an audit metric rather than a false limiter claim.
+ expect(results.rows.every(row=>row.peak<.5)).toBe(true);
 });
 
 test('modo Tocar e gravação WAV real com reprodução e interrupção',async({page})=>{
@@ -129,7 +165,7 @@ test('piano roll: editar, guardar, reproduzir acordes e gravar composição',asy
 test('bateria: passos, acentos, compassos, ficheiros e áudio sincronizado',async({page})=>{
  test.setTimeout(180000);await page.getByRole('button',{name:'Compor',exact:true}).click();
  await expect(page.locator('.drum-step')).toHaveCount(128);
- const first=page.getByRole('button',{name:'Bombo, passo 1',exact:true});await first.click();await expect(first).toHaveAttribute('data-velocity','0.65');await first.click();await expect(first).toHaveAttribute('data-velocity','1');await first.click();await expect(first).toHaveAttribute('aria-pressed','false');
+ const first=page.getByRole('button',{name:/Bombo, passo 1, velocity/});await first.click();await expect(first).toHaveAttribute('data-velocity','32');await page.getByRole('button',{name:'Ghost note'}).click();await page.getByLabel('Velocity do impacto selecionado').fill('47');await expect(first).toHaveAttribute('data-velocity','47');await first.click();await expect(first).toHaveAttribute('data-velocity','127');await first.click();await expect(first).toHaveAttribute('aria-pressed','false');
  await page.getByRole('button',{name:'Compasso 2',exact:true}).click();await page.getByRole('button',{name:'Bombo, passo 17',exact:true}).click();await page.getByRole('button',{name:'Repetir este compasso nos quatro'}).click();await page.getByRole('button',{name:'Compasso 4',exact:true}).click();await expect(page.getByRole('button',{name:'Bombo, passo 49',exact:true})).toHaveAttribute('aria-pressed','true');
  await page.getByLabel('Ritmo de bateria',{exact:true}).selectOption('rock');await page.getByRole('button',{name:'Silenciar Caixa',exact:true}).click();await expect(page.getByRole('button',{name:'Silenciar Caixa',exact:true})).toHaveAttribute('aria-pressed','true');
  await page.getByLabel('Volume Bombo',{exact:true}).focus();await page.keyboard.press('Home');for(let i=0;i<10;i++)await page.keyboard.press('ArrowRight');await expect(page.getByLabel('Volume Bombo',{exact:true})).toHaveValue('0.5');

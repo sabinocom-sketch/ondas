@@ -6,6 +6,7 @@ import {SequenceAudio} from '../src/audio/sequence-audio';
 import {DrumKit} from '../src/audio/drums';
 import {defaults,clonePatch} from '../src/audio/parameters';
 import {emptySong,newTrack,validSong,migrateComposition,storeSong,loadSong} from '../src/music/song';
+import {phase4ReferenceSong} from '../src/music/reference-song';
 
 function audioContext(){
  const sources:any[]=[],oscillators:any[]=[],nodes:any[]=[];
@@ -19,6 +20,7 @@ function audioContext(){
 afterEach(()=>{vi.unstubAllGlobals();vi.restoreAllMocks()});
 
 describe('Exportação de composições completas',()=>{
+ it('exporta a referência da Fase 4 com seis partes, gestos e bateria numa só renderização',async()=>{const a=audioContext(),p=phase4ReferenceSong();p.loop=false;vi.stubGlobal('OfflineAudioContext',vi.fn(function(){return a.ctx}));vi.stubGlobal('fetch',vi.fn(async()=>({ok:true,arrayBuffer:async()=>new ArrayBuffer(1)})));const blob=await renderSongWav(p);expect(a.ctx.startRendering).toHaveBeenCalledTimes(1);expect(a.sources.length).toBeGreaterThan(150);expect(a.oscillators.length).toBeGreaterThanOrEqual(13);expect(a.sources.every(source=>source.disconnect.mock.calls.length>0)).toBe(true);expect(a.oscillators.every(oscillator=>oscillator.disconnect.mock.calls.length>0)).toBe(true);expect(new TextDecoder().decode((await blob.arrayBuffer()).slice(0,4))).toBe('RIFF')},15000);
  it('preserva 24 notas de amostras, 40 impactos e mais de 32 notas sintetizadas antes de renderizar',async()=>{
   const a=audioContext(),p=emptySong();p.bpm=120;p.loop=false;
   p.blocks[0].tracks=[{...newTrack('Baixo','electric-bass'),notes:Array.from({length:24},(_,i)=>({id:'bass-'+i,note:28,start:i*2,length:1}))},{...newTrack('Synth','classic'),notes:Array.from({length:48},(_,i)=>({id:'synth-'+i,note:60,start:i,length:1}))}];
@@ -32,14 +34,16 @@ describe('Exportação de composições completas',()=>{
   expect(a.nodes.filter(n=>n.kind==='compressor')).toHaveLength(1);
   expect(a.sources.every(n=>n.disconnect.mock.calls.length>0)).toBe(true);
   expect(new TextDecoder().decode((await blob.arrayBuffer()).slice(0,4))).toBe('RIFF');
- });
+ },15000);
  it('preserva instrumentos e volumes idênticos nos caminhos ao vivo e offline',async()=>{
   const live=audioContext(),offline=audioContext();
-  for(const [a,isOffline] of [[live,false],[offline,true]] as const){const sequence=new SequenceAudio(a.ctx,{} as AudioNode,()=>defaults,isOffline);sequence.note('test',28,.05,.5,'bass',.4)}
+  for(const [a,isOffline] of [[live,false],[offline,true]] as const){const sequence=new SequenceAudio(a.ctx,{} as AudioNode,()=>defaults,isOffline);sequence.note('test',28,.05,.5,'bass',.4);sequence.note('expressive',60,.1,.6,'piano',.8,{instrument:'piano',velocity:58,durationSeconds:.5,articulation:'soft',level:.8,mode:'expressive'});sequence.note('bass-slap',40,.2,.6,'bass',.7,{instrument:'electric-bass',velocity:118,durationSeconds:.4,articulation:'slap',level:.7,mode:'expressive'})}
   const left=live.oscillators.map(n=>({wave:n.type,freq:n.frequency.value,detune:n.detune.value})),right=offline.oscillators.map(n=>({wave:n.type,freq:n.frequency.value,detune:n.detune.value}));
   expect(left).toEqual(right);
   expect(live.nodes.filter(n=>n.kind==='gain').map(n=>n.gain.value)).toEqual(offline.nodes.filter(n=>n.kind==='gain').map(n=>n.gain.value));
  });
+ it('exporta o gesto acústico com offsets uma única vez e cauda suficiente',async()=>{const a=audioContext(),p=emptySong(),track={...newTrack('Guitarra','acoustic-guitar'),notes:[{id:'low',note:57,start:0,length:4,velocity:90},{id:'high',note:69,start:0,length:4,velocity:90}],gestures:[{id:'gesture',noteIds:['low','high'],direction:'down' as const,durationMs:200,intensity:100}]};p.blocks[0].tracks=[track];let starts:number[]=[];a.ctx.startRendering.mockImplementation(async()=>{starts=a.sources.flatMap(source=>source.start.mock.calls.map((call:any[])=>call[0]));return a.buffer()});vi.stubGlobal('OfflineAudioContext',vi.fn(function(){return a.ctx}));vi.stubGlobal('fetch',vi.fn(async()=>({ok:true,arrayBuffer:async()=>new ArrayBuffer(1)})));await renderSongWav(p);expect(starts[0]).toBeCloseTo(.05);expect(starts[1]).toBeCloseTo(.25);expect((a.ctx as any).startRendering).toHaveBeenCalledTimes(1)});
+ it('exporta swing e humanização com o mesmo cálculo determinístico',async()=>{const a=audioContext(),p=emptySong(),drums=p.blocks[0].drums;p.bpm=120;drums.swing=100;drums.humanizeTimingMs=0;drums.humanizeVelocity=0;drums.humanizeSeed=77;drums.tracks.find(track=>track.id==='kick')!.steps[0]=127;drums.tracks.find(track=>track.id==='snare')!.steps[2]=32;let starts:number[]=[];a.ctx.startRendering.mockImplementation(async()=>{starts=a.sources.flatMap(source=>source.start.mock.calls.map((call:any[])=>call[0]));return a.buffer()});vi.stubGlobal('OfflineAudioContext',vi.fn(function(){return a.ctx}));await renderSongWav(p);expect(starts).toHaveLength(2);expect(starts[0]).toBeCloseTo(.05);expect(starts[1]).toBeCloseTo(.05+2*.125+.125*2/3)});
  it('aplica o master fornecido e liberta recursos se o carregamento de amostras falhar',async()=>{
   const a=audioContext(),patch=clonePatch(defaults),p=emptySong(),update=vi.spyOn(Effects.prototype,'update');patch.master=0;patch.delay.enabled=true;patch.delay.mix=.4;p.blocks[0].tracks[0].notes=[{id:'x',note:60,start:0,length:4}];
   vi.stubGlobal('OfflineAudioContext',vi.fn(function(){return a.ctx}));await renderSongWav(p,patch);

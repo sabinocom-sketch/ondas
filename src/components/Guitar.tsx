@@ -1,6 +1,6 @@
 import {useEffect,useRef,useState,type PointerEvent} from 'react';
 import type {MusicalInput} from '../music/input';
-import {chordNotes,guitarChords,guitarOpenNotes,guitarStringNames,guitarTuning,midiNoteName,pickingDelay,type GuitarChordName,type PickingStyle} from '../music/guitar';
+import {chordNotes,guitarChords,guitarOpenNotes,guitarStringNames,guitarTuning,midiNoteName,pickingDelay,pluckExpression,strumGesture,type GuitarChordName,type PickingStyle,type StrumDirection} from '../music/guitar';
 
 const fretMarks=new Set([3,5,7,9,12]);
 
@@ -8,20 +8,23 @@ export function Guitar({input,electric=false}:{input:MusicalInput;electric?:bool
  const [style,setStyle]=useState<PickingStyle>('pick');
  const [chord,setChord]=useState<GuitarChordName>('Em');
  const [frets,setFrets]=useState<(number|null)[]>([...guitarChords.Em]);
+ const [strumDuration,setStrumDuration]=useState(120),[intensity,setIntensity]=useState(100);
  const [vibrating,setVibrating]=useState<Set<number>>(new Set());
  const timers=useRef<number[]>([]);
  const pulse=(string:number)=>{setVibrating(old=>new Set(old).add(string));const timer=window.setTimeout(()=>setVibrating(old=>{const next=new Set(old);next.delete(string);return next}),360);timers.current.push(timer)};
- const pluck=(string:number,note=guitarTuning[string]+(frets[string]??0),delay=0)=>{const timer=window.setTimeout(()=>{const id=`guitar:${string}:${performance.now()}`;pulse(string);void input.down(id,note);timers.current.push(window.setTimeout(()=>input.up(id),style==='finger'?900:650))},delay);timers.current.push(timer)};
- const strum=(direction:'down'|'up')=>{const delay=pickingDelay(style);chordNotes(chord,direction).forEach((item,index)=>pluck(item.string,item.note,index*delay))};
+ const sound=(string:number,note:number,delay:number,expression:Parameters<MusicalInput['down']>[2])=>{const timer=window.setTimeout(()=>{const id=`guitar:${string}:${performance.now()}`;pulse(string);void input.down(id,note,expression);timers.current.push(window.setTimeout(()=>input.up(id),Math.round((expression?.durationSeconds??.68)*1000)))},delay);timers.current.push(timer)};
+ const pluck=(string:number,note=guitarTuning[string]+(frets[string]??0),delay=0)=>sound(string,note,delay,pluckExpression(style==='finger'?'finger':style==='mute'?'mute':'pick',string,intensity));
+ const strum=(direction:StrumDirection)=>{if(style==='mute'){chordNotes(chord,direction).forEach((item,index)=>sound(item.string,item.note,index*pickingDelay(style),pluckExpression('mute',item.string,intensity)));return}strumGesture(chord,direction,strumDuration,intensity).forEach(item=>sound(item.string,item.note,item.delayMs,{velocity:item.velocity,articulation:item.articulation,durationSeconds:Math.max(.32,(electric?1.05:.82)-item.delayMs/1000),mode:'expressive'}))};
  const chooseChord=(name:GuitarChordName)=>{input.clear();setChord(name);setFrets([...guitarChords[name]])};
- useEffect(()=>{const down=(event:KeyboardEvent)=>{if((event.target as HTMLElement).closest('input,select,textarea,button')||event.repeat||event.ctrlKey||event.metaKey||event.altKey)return;const number=Number(event.key);if(number>=1&&number<=6){event.preventDefault();pluck(6-number)}else if(event.key==='ArrowDown'||event.key==='ArrowUp'){event.preventDefault();strum(event.key==='ArrowDown'?'down':'up')}};window.addEventListener('keydown',down);return()=>window.removeEventListener('keydown',down)},[frets,chord,style]);
+ useEffect(()=>{const down=(event:KeyboardEvent)=>{if((event.target as HTMLElement).closest('input,select,textarea,button')||event.repeat||event.ctrlKey||event.metaKey||event.altKey)return;const number=Number(event.key);if(number>=1&&number<=6){event.preventDefault();pluck(6-number)}else if(event.key==='ArrowDown'||event.key==='ArrowUp'){event.preventDefault();strum(event.key==='ArrowDown'?'down':'up')}};window.addEventListener('keydown',down);return()=>window.removeEventListener('keydown',down)},[frets,chord,style,strumDuration,intensity]);
  useEffect(()=>()=>timers.current.forEach(clearTimeout),[]);
  const touch=(e:PointerEvent<HTMLButtonElement>,string:number,fret:number)=>{e.preventDefault();setFrets(old=>old.map((value,index)=>index===string?fret:value));pluck(string,guitarTuning[string]+fret)};
  return <section className={'guitar panel '+(electric?'electric':'acoustic')} aria-label={electric?'Guitarra elétrica':'Guitarra acústica'}>
   <div className="panel-heading"><div><span className="eyebrow">01 / GUITARRA INTERATIVA</span><h2>Toca corda a corda.</h2></div><span className="guitar-live"><i className="dot"/> SEIS CORDAS REAIS</span></div>
   <div className="guitar-controls">
-   <fieldset><legend>Picking automático · seleciona um</legend>{([['pick','Palheta'],['finger','Dedilhado'],['rasgueado','Rasgueado']] as [PickingStyle,string][]).map(([value,label])=><button key={value} aria-pressed={style===value} onClick={()=>setStyle(value)}>{label}</button>)}</fieldset>
+   <fieldset><legend>Picking automático · seleciona um</legend>{([['pick','Palheta'],['finger','Dedilhado'],['rasgueado','Rasgueado'],...(electric?[["mute","Palm mute"]]:[])] as [PickingStyle,string][]).map(([value,label])=><button key={value} aria-pressed={style===value} onClick={()=>setStyle(value)}>{label}</button>)}</fieldset>
    <label>Acorde<select aria-label="Acorde de guitarra" value={chord} onChange={e=>chooseChord(e.target.value as GuitarChordName)}>{Object.keys(guitarChords).map(name=><option key={name}>{name}</option>)}</select></label>
+   <label>Duração do gesto <span>{strumDuration} ms</span><input aria-label="Duração do rasgueado" type="range" min={30} max={300} step={5} value={strumDuration} onChange={e=>setStrumDuration(Number(e.target.value))}/></label><label>Intensidade <span>{intensity}</span><input aria-label="Intensidade da guitarra" type="range" min={20} max={127} value={intensity} onChange={e=>setIntensity(Number(e.target.value))}/></label>
    <div className="strum-actions"><button onClick={()=>strum('down')} aria-label="Palhetada para baixo">↓ <span>Baixo</span></button><button onClick={()=>strum('up')} aria-label="Palhetada para cima">↑ <span>Cima</span></button></div>
   </div>
   <div className="guitar-stage">

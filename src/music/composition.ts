@@ -1,9 +1,13 @@
-import {emptyDrums,validDrums,type DrumPattern,type DrumId} from './drum-pattern';
+import {drumPerformance,emptyDrums,validDrums,type DrumPattern,type DrumId} from './drum-pattern';
+import type {NoteArticulation} from '../audio/expressiveness';
 export const STEPS=64,LOW=24,HIGH=95,STEPS_PER_BEAT=4,BEATS_PER_BAR=4,STEPS_PER_BAR=STEPS_PER_BEAT*BEATS_PER_BAR;
 export const CHORD_DURATIONS=[{steps:2,label:'½ tempo'},{steps:4,label:'1 tempo'},{steps:8,label:'2 tempos'},{steps:16,label:'4 tempos'},{steps:32,label:'8 tempos'},{steps:64,label:'16 tempos'}] as const;
 export function chordPosition(step:number,total=STEPS){const safe=Math.max(0,Math.min(total-1,Math.round(step)));return{bar:Math.floor(safe/STEPS_PER_BAR)+1,beatStep:safe%STEPS_PER_BAR,beat:Math.floor(safe%STEPS_PER_BAR/STEPS_PER_BEAT)+1,subdivision:safe%STEPS_PER_BEAT}}
 export function nextChordStart(start:number,length:number,total=STEPS){return Math.min(total-1,Math.max(0,Math.round(start))+Math.max(1,Math.round(length)))}
-export interface RollNote{id:string;note:number;start:number;length:number}
+export const DEFAULT_VELOCITY=100;
+export interface RollNote{id:string;note:number;start:number;length:number;velocity?:number;articulation?:NoteArticulation}
+export const noteVelocity=(note:Pick<RollNote,'velocity'>)=>note.velocity??DEFAULT_VELOCITY;
+export const velocityGain=(note:Pick<RollNote,'velocity'>,volume=1)=>Math.min(1,Math.max(0,volume)*noteVelocity(note)/DEFAULT_VELOCITY);
 export interface Composition{version:1;bpm:number;loop:boolean;notes:RollNote[];drums?:DrumPattern}
 export const emptyComposition=():Composition=>({version:1,bpm:110,loop:true,notes:[],drums:emptyDrums()});
 export function validComposition(x:unknown):x is Composition{
@@ -28,7 +32,7 @@ export class RollPlayer{
  constructor(private engine:SequencerEngine,private changed:(step:number,running:boolean)=>void){engine.listeners.add(this.state);engine.panicListeners.add(this.stop)}
  private state=()=>{if(this.engine.context?.state!=='running'&&this.running)this.stop()};
  async start(p:Composition){this.stop();if(!hasEvents(p))return;const epoch=++this.epoch;this.starting=true;await this.engine.start();if(epoch!==this.epoch)return;this.starting=false;this.composition=JSON.parse(JSON.stringify(p));this.origin=this.engine.context!.currentTime+.05;this.scheduledStep=0;this.running=true;this.tick();this.timer=setInterval(()=>this.tick(),25)}
- private schedule(step:number,stepTime:number,stepDuration:number){const cycle=Math.floor(step/STEPS),index=step%STEPS;if(!this.composition.loop&&cycle>0)return;for(const track of this.composition.drums?.tracks??[])if(!track.muted&&track.volume>0&&track.steps[index]>0)this.engine.drumHit?.(track.id,track.volume*track.steps[index],stepTime);for(const note of this.composition.notes)if(note.start===index){const id=`roll:${this.epoch}:${cycle}:${note.id}`;this.engine.sequenceNote(id,note.note,stepTime,stepTime+note.length*stepDuration)}}
+ private schedule(step:number,stepTime:number,stepDuration:number){const cycle=Math.floor(step/STEPS),index=step%STEPS;if(!this.composition.loop&&cycle>0)return;const pattern=this.composition.drums;for(const track of pattern?.tracks??[])if(!track.muted&&track.volume>0&&track.steps[index]>0){const performance=drumPerformance(pattern!,track.id,step,stepTime,stepDuration,track.steps[index]);this.engine.drumHit?.(track.id,track.volume*performance.velocity,performance.at)}for(const note of this.composition.notes)if(note.start===index){const id=`roll:${this.epoch}:${cycle}:${note.id}`;this.engine.sequenceNote(id,note.note,stepTime,stepTime+note.length*stepDuration)}}
  tick(){if(!this.running)return;const t=this.engine.context;if(!t||t.state!=='running'){this.stop();return}const stepDuration=60/this.composition.bpm/4,elapsed=t.currentTime-this.origin;if(!this.composition.loop&&elapsed>=STEPS*stepDuration){this.stop();return}const horizon=Math.max(0,t.currentTime+this.lookAhead-this.origin),last=Math.floor(horizon/stepDuration);while(this.scheduledStep<=last&&(this.composition.loop||this.scheduledStep<STEPS)){const at=this.origin+this.scheduledStep*stepDuration;this.schedule(this.scheduledStep,at,stepDuration);this.scheduledStep++}const visual=notesAt(this.composition,Math.max(0,elapsed));this.changed(visual.step,true)}
  stop=()=>{this.epoch++;const wasActive=this.running||this.starting;this.running=false;this.starting=false;clearInterval(this.timer);this.engine.stopSequence();if(wasActive)this.changed(0,false)};
  dispose(){this.stop();this.engine.listeners.delete(this.state);this.engine.panicListeners.delete(this.stop)}

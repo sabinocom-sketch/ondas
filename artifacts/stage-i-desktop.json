@@ -1,0 +1,94 @@
+{
+  "baseLatency": 0.01,
+  "rows": [
+    {
+      "voices": 8,
+      "compressor": false,
+      "renderMs": 441.19999998807907,
+      "peak": 0.11705263704061508,
+      "rms": 0.019680397123302648,
+      "limitedSamples": 0,
+      "nonFinite": 0,
+      "remaining": 0,
+      "retiring": 0,
+      "reduction": -0.7747943997383118
+    },
+    {
+      "voices": 8,
+      "compressor": true,
+      "renderMs": 611.8999999910593,
+      "peak": 0.21926361322402954,
+      "rms": 0.035104456152799154,
+      "limitedSamples": 0,
+      "nonFinite": 0,
+      "remaining": 0,
+      "retiring": 0,
+      "reduction": -0.7747943997383118
+    },
+    {
+      "voices": 16,
+      "compressor": false,
+      "renderMs": 1366.7000000029802,
+      "peak": 0.11950516700744629,
+      "rms": 0.025152166416723448,
+      "limitedSamples": 0,
+      "nonFinite": 0,
+      "remaining": 0,
+      "retiring": 0,
+      "reduction": -0.7774074673652649
+    },
+    {
+      "voices": 16,
+      "compressor": true,
+      "renderMs": 628.7000000029802,
+      "peak": 0.21546152234077454,
+      "rms": 0.045820411826730585,
+      "limitedSamples": 0,
+      "nonFinite": 0,
+      "remaining": 0,
+      "retiring": 0,
+      "reduction": -0.7774074673652649
+    },
+    {
+      "voices": 32,
+      "compressor": false,
+      "renderMs": 1004.1000000089407,
+      "peak": 0.16115066409111023,
+      "rms": 0.032516269515460154,
+      "limitedSamples": 0,
+      "nonFinite": 0,
+      "remaining": 0,
+      "retiring": 0,
+      "reduction": -0.8037130832672119
+    },
+    {
+      "voices": 32,
+      "compressor": true,
+      "renderMs": 3206,
+      "peak": 0.2886658310890198,
+      "rms": 0.05613006348825663,
+      "limitedSamples": 0,
+      "nonFinite": 0,
+      "remaining": 0,
+      "retiring": 0,
+      "reduction": -0.803713321685791
+    }
+  ],
+  "comparisons": [
+    {
+      "voices": 8,
+      "peakDeltaDb": 5.4517072861447335,
+      "rmsDeltaDb": 5.026567831473232
+    },
+    {
+      "voices": 16,
+      "peakDeltaDb": 5.119660817569348,
+      "rmsDeltaDb": 5.209671808170432
+    },
+    {
+      "voices": 32,
+      "peakDeltaDb": 5.06326561263629,
+      "rmsDeltaDb": 4.7418963768582385
+    }
+  ]
+}
