@@ -27,6 +27,7 @@ test('scroll horizontal acrescenta compassos e guarda notas além do quarto',asy
 
 test('piano roll duplica uma nota com duplo clique e só a apaga com duplo clique direito',async({page})=>{
  await page.getByRole('button',{name:'Adicionar nota',exact:true}).click();await expect(page.locator('[data-roll-note]')).toHaveCount(1);
+ const contextMenuState=await page.evaluate(()=>{const grid=document.querySelector<HTMLElement>('.roll-grid')!,outside=document.querySelector<HTMLElement>('.roll-heading')!,insideEvent=new MouseEvent('contextmenu',{bubbles:true,cancelable:true}),outsideEvent=new MouseEvent('contextmenu',{bubbles:true,cancelable:true});grid.dispatchEvent(insideEvent);outside.dispatchEvent(outsideEvent);return{inside:insideEvent.defaultPrevented,outside:outsideEvent.defaultPrevented}});expect(contextMenuState).toEqual({inside:true,outside:false});
  await page.locator('[data-roll-note]').dblclick();await expect(page.locator('[data-roll-note]')).toHaveCount(2);await expect(page.locator('[data-roll-note][aria-pressed=true]')).toHaveCount(1);await expect(page.locator('[data-roll-note][aria-label^="Dó4, passo 1"]')).toHaveCount(1);
  const selected=page.locator('[data-roll-note][aria-pressed=true]');await selected.click({button:'right'});await expect(page.locator('[data-roll-note]')).toHaveCount(2);await selected.click({button:'right'});await expect(page.locator('[data-roll-note]')).toHaveCount(1);
 });

@@ -146,3 +146,12 @@ Passaram os três cenários adicionais em Chrome com viewport 820 × 1180 e toqu
 - Na execução unitária completa, 129 de 130 testes passaram inicialmente; o único resultado foi um timeout no `afterEach` de um teste existente de exportação WAV. O cenário afetado foi repetido isoladamente e passou em 1,36 s, sem alteração da exportação.
 - A suíte Playwright completa e o cenário desktop direcionado ficaram bloqueados antes da descoberta dos testes, durante o arranque do servidor configurado, sem resultados de asserção. Esta execução não é registada como validação de navegador concluída.
 - O Loop de um intervalo personalizado, incluindo apenas dois compassos dentro de um bloco maior, permanece como evolução futura; esta alteração não introduz um segundo relógio nem um formato incompatível para esse intervalo.
+
+## Menu de contexto e iluminação do piano roll — 31/10/2026
+
+- O evento `contextmenu` é cancelado em toda a grelha de edição do piano roll. Fora da grelha, o menu nativo continua disponível. A deteção de dois cliques direitos permanece no caminho de Pointer Events existente, sem alterar seleção, arrastamento, redimensionamento ou toque.
+- A iluminação usa os IDs de notas ativas calculados pelo `SongPlayer` a partir da posição exata do `MusicalTransport`, que deriva de `AudioContext.currentTime`. A duração, acordes, mute/solo, pausa, retoma, seek, mudança de BPM, loop e paragem continuam a usar o mesmo relógio e scheduler do áudio.
+- O estado React das notas ativas conserva a referência anterior quando os IDs não mudam, evitando uma atualização de estado redundante em cada tick do transporte. A classe visual de reprodução é combinada com a classe de seleção, preservando ambas as indicações.
+- Acrescentada uma verificação Playwright que confirma `defaultPrevented` dentro da grelha e ausência de cancelamento fora dela, antes de repetir o cenário de duplicação e eliminação por clique direito.
+- Validação concluída: `npm test` — **130 testes em 15 ficheiros, todos passaram**; `npm run build` — TypeScript e Vite passaram, 68 módulos, JS 382,88 kB (119,07 kB gzip); `git diff --check` sem erros.
+- Os três cenários Playwright dirigidos foram descobertos, mas não chegaram a abrir a aplicação porque o executável `chromium_headless_shell-1248` não está instalado neste ambiente. A conclusão desta validação requer instalar o Chromium correspondente com `npx playwright install chromium`; não é registada como falha funcional do Ondas nem como teste de navegador concluído.
